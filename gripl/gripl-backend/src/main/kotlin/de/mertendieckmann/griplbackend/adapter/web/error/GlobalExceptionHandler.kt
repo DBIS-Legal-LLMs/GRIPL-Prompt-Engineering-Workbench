@@ -1,5 +1,8 @@
 package de.mertendieckmann.griplbackend.adapter.web.error
 
+import de.mertendieckmann.griplbackend.application.PromptNotFoundException
+import de.mertendieckmann.griplbackend.application.PromptVersionConflictException
+import de.mertendieckmann.griplbackend.application.PromptVersionNotFoundException
 import dev.langchain4j.service.output.OutputParsingException
 import org.camunda.bpm.model.xml.ModelParseException
 import org.camunda.bpm.model.xml.ModelValidationException
@@ -80,6 +83,34 @@ class GlobalExceptionHandler {
         ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiError(code = "OUTPUT_PARSING_ERROR", message = "There was an error parsing the output from the AI service: ${ex.localizedMessage}"))
+            .also { ex.printStackTrace() }
+            
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleIllegalArgumentException(ex: IllegalArgumentException): ResponseEntity<ApiError> =
+        ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiError(code = "ILLEGAL_ARGUMENT", message = ex.message))
+            .also { ex.printStackTrace() }
+
+    @ExceptionHandler(PromptNotFoundException::class)
+    fun handlePromptNotFoundException(ex: PromptNotFoundException): ResponseEntity<ApiError> =
+        ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiError(code = "PROMPT_NOT_FOUND", message = ex.message))
+            .also { ex.printStackTrace() }
+            
+    @ExceptionHandler(PromptVersionNotFoundException::class)
+    fun handlePromptVersionNotFoundException(ex: PromptVersionNotFoundException): ResponseEntity<ApiError> =
+        ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiError(code = "PROMPT_VERSION_NOT_FOUND", message = ex.message))
+            .also { ex.printStackTrace() }
+            
+    @ExceptionHandler(PromptVersionConflictException::class)
+    fun handlePromptVersionConflictException(ex: PromptVersionConflictException): ResponseEntity<ApiError> =
+        ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiError(code = "PROMPT_VERSION_CONFLICT", message = ex.message))
             .also { ex.printStackTrace() }
 
     data class ApiError(val code: String, val message: String?)
