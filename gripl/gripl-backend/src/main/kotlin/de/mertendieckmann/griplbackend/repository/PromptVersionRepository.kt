@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import de.mertendieckmann.griplbackend.model.dto.ClassificationScope
 import de.mertendieckmann.griplbackend.model.dto.PromptVersion
 import de.mertendieckmann.griplbackend.model.dto.Variable
+import org.postgresql.util.PGobject
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.stereotype.Repository
@@ -88,6 +89,10 @@ class PromptVersionRepository(
         commitMessage: String
     ): Long {
         val variablesJson = objectMapper.writeValueAsString(variables)
+        val variablesValue = PGobject().apply {
+            type = "jsonb"
+            value = variablesJson
+        }
         val classificationScopeRaw = classificationScope.name
         val sql = """
             INSERT INTO prompt_version (
@@ -98,7 +103,7 @@ class PromptVersionRepository(
                 classification_scope, 
                 commit_message, 
                 is_default)
-            VALUES (?, ?, ?, ?, ?, ?, FALSE)
+            VALUES (?, ?, ?, ?::jsonb, ?::classification_scope, ?, FALSE)
             RETURNING id
         """.trimIndent()
         
@@ -108,7 +113,7 @@ class PromptVersionRepository(
             promptId,
             versionNumber,
             template,
-            variablesJson,
+            variablesValue,
             classificationScopeRaw,
             commitMessage
         ) ?: throw IllegalStateException("Database did not return an ID for the created prompt version.")
