@@ -11,6 +11,7 @@ import {EvaluationData} from "@/models/dto/EvaluationData";
 const nameMap = {
     "": 'Sandbox',
     labeling: "Labeling",
+    prompts: "Prompt Library",
     thesis: "Thesis",
 }
 

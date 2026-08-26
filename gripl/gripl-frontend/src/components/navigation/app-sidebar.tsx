@@ -7,7 +7,7 @@ import {
     SidebarMenuItem
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-import {BookA, ChartBarDecreasing, Newspaper, Tag, Workflow} from "lucide-react";
+import {BookA, ChartBarDecreasing, LibraryBig, Newspaper, Tag, Workflow} from "lucide-react";
 import React, {ReactNode} from "react";
 import Image from "next/image";
 
@@ -29,6 +29,11 @@ export default function AppSidebar() {
             href: "/labeling",
             label: "Labeling",
             icon: <Tag />
+        },
+        {
+            href: "/prompts",
+            label: "Prompt Library",
+            icon: <LibraryBig />
         },
         {
             href: "/evaluation",
