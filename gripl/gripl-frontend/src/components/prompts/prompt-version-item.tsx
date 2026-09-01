@@ -1,6 +1,6 @@
 "use client";
 
-import { PromptVersion } from "@/models/dto/PromptVersion";
+import { PromptVersion, classificationScopeLabels } from "@/models/dto/PromptVersion";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,7 @@ export default function PromptVersionItem({ version }: PromptVersionItemProps) {
                         <CollapsibleTrigger>
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
                                 <CardTitle>Version {version.versionNumber}</CardTitle>
-                                <Badge>{version.classificationScope}</Badge>
+                                <Badge>{classificationScopeLabels[version.classificationScope]}</Badge>
                                 {version.isDefault ? <Badge>Default</Badge> : <Badge className="invisible">Default</Badge>}
                             </div>
                         </CollapsibleTrigger>

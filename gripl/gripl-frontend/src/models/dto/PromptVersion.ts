@@ -40,6 +40,11 @@ export interface Variable {
  * This determines the classification universe used for calculating evaluation metrics in the backend.
  */
 export enum ClassificationScope {
-    ACTIVITIES_ONLY = "Activities only",
-    ALL_BPMN_ELEMENTS = "All BPMN elements",
+    ACTIVITIES_ONLY = "ACTIVITIES_ONLY",
+    ALL_BPMN_ELEMENTS = "ALL_BPMN_ELEMENTS",
 }
+
+export const classificationScopeLabels: Record<ClassificationScope, string> = {
+    [ClassificationScope.ACTIVITIES_ONLY]: "Activities only",
+    [ClassificationScope.ALL_BPMN_ELEMENTS]: "All BPMN elements",
+};
