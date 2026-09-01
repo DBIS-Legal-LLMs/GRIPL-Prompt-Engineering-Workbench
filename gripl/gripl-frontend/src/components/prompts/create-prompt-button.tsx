@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 
 interface CreatePromptButtonProps {
     onPromptCreated: (prompt: Prompt) => void;
+    disabled?: boolean;
 }
 
 /**
@@ -20,7 +21,7 @@ interface CreatePromptButtonProps {
  * @param {CreatePromptButtonProps} props - The function to be called when a new prompt is created.
  * @returns {JSX.Element} The rendered create prompt button component.
  */
-export default function CreatePromptButton({ onPromptCreated }: CreatePromptButtonProps) {
+export default function CreatePromptButton({ onPromptCreated, disabled }: CreatePromptButtonProps) {
     const { showToast, showError } = useToast();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -51,7 +52,7 @@ export default function CreatePromptButton({ onPromptCreated }: CreatePromptButt
 
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <Button type="button" onClick={() => setIsDialogOpen(true)}>
+            <Button type="button" onClick={() => setIsDialogOpen(true)} disabled={disabled}>
                 <Plus />
                 <span className="pl-2 text-center">Create Prompt</span>
             </Button>
