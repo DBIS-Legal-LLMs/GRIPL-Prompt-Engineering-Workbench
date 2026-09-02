@@ -6,17 +6,21 @@ interface PromptListProps {
     promptIdWithVersionDraft: number | null;
     startVersionCreation: (promptId: number) => boolean;
     finishVersionCreation: () => void;
+    onPromptDeleted: (promptId: number) => void;
 }
 
 /**
- * Displays a list of prompts, by rendering a PromptItem for each prompt in the list it gets passed. 
- * If the list is empty (there are no prompts yet), a message is displayed instead. 
+ * Displays a list of prompts by rendering one PromptItem for each entry.
+ * Displays an empty-state message when no prompts are available.
  * 
- * @param {PromptListProps} props - The list of prompts to be displayed 
- *  and the state and handlers for creating new prompt versions to forward to each PromptItem component.
+ * Forwards the centrally managed version-creation state and handlers, as well
+ * as the deletion callback, to every prompt item.
+ * 
+ * @param {PromptListProps} props - The prompts to display, version-creation
+ * state and handlers, and the callback invoked after a prompt is deleted.
  * @returns {JSX.Element} The rendered prompt list component.
  */
-export default function PromptList({ prompts, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation }: PromptListProps) {
+export default function PromptList({ prompts, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation, onPromptDeleted }: PromptListProps) {
     if (prompts.length === 0) {
         return <p>No prompts available yet.</p>;
     }
@@ -31,6 +35,7 @@ export default function PromptList({ prompts, promptIdWithVersionDraft, startVer
                     promptIdWithVersionDraft={promptIdWithVersionDraft}
                     startVersionCreation={startVersionCreation}
                     finishVersionCreation={finishVersionCreation}
+                    onPromptDeleted={onPromptDeleted}
                 />
             ))}
         </div>

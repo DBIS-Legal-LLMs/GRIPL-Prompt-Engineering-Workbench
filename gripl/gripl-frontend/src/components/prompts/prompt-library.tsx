@@ -13,9 +13,10 @@ interface PromptLibraryProps {
 /**
  * Displays the prompt library page, containing a list of prompts.
  * 
- * Also handles the state for creating new prompt versions, ensuring that only one version can be created at a time.
+ * Manages the local prompt list after prompt creation and deletion. It also centrally coordinates prompt-version drafts, 
+ * ensuring that only one prompt version can be created at a time.
  * 
- * @param {PromptLibraryProps} props - The list of prompts to be displayed or null if fetching failed.
+ * @param {PromptLibraryProps} props - The prompts initially loaded from the backend, or null when loading failed.
  * @returns {JSX.Element} The rendered prompt library component.
  */
 export default function PromptLibrary({ initialPrompts }: PromptLibraryProps) {
@@ -30,6 +31,13 @@ export default function PromptLibrary({ initialPrompts }: PromptLibraryProps) {
 
     function handlePromptCreated(newPrompt: Prompt) {
         setPrompts((currentPrompts) => (currentPrompts ? [...currentPrompts, newPrompt] : [newPrompt]));
+    }
+
+    function handlePromptDeleted(deletedPromptId: number) {
+        setPrompts((currentPrompts) => currentPrompts?.filter(prompt => prompt.id !== deletedPromptId) ?? null);
+        if (promptIdWithVersionDraft === deletedPromptId) {
+            setPromptIdWithVersionDraft(null);
+        }
     }
 
     /**
@@ -75,6 +83,7 @@ export default function PromptLibrary({ initialPrompts }: PromptLibraryProps) {
                         promptIdWithVersionDraft={promptIdWithVersionDraft}
                         startVersionCreation={handleStartVersionCreation}
                         finishVersionCreation={handleFinishVersionCreation}
+                        onPromptDeleted={handlePromptDeleted}
                     />
                 )}
             </div>

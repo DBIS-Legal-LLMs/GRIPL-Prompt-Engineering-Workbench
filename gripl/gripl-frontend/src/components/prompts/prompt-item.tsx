@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import PromptVersionItem from "@/components/prompts/prompt-version-item";
 import { Button } from "@/components/ui/button";
 import CreatePromptVersionCard from "./create-prompt-version-card";
+import DeletePromptButton from "@/components/prompts/delete-prompt-button";
 
 interface PromptItemProps {
     prompt: Prompt;
@@ -18,6 +19,7 @@ interface PromptItemProps {
     promptIdWithVersionDraft: number | null;
     startVersionCreation: (promptId: number) => boolean;
     finishVersionCreation: () => void;
+    onPromptDeleted: (promptId: number) => void;
 }
 
 /**
@@ -37,11 +39,12 @@ interface PromptItemProps {
  *   because another prompt is currently creating a version.
  * - When no ID is stored, this item may start a new version creation.
  * 
- * @param {PromptItemProps} props - The prompt that should be displayed, optional
- * styling, and the centrally managed version-creation state and handlers.
+ * @param {PromptItemProps} props - The prompt to display, optional styling,
+ * centrally managed version-creation state and handlers, and the callback
+ * invoked after a successful deletion.
  * @returns {JSX.Element} The rendered prompt item component.
  */
-export default function PromptItem({ prompt, className, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation }: PromptItemProps) {
+export default function PromptItem({ prompt, className, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation, onPromptDeleted }: PromptItemProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [promptVersions, setPromptVersions] = useState<PromptVersion[] | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -49,7 +52,7 @@ export default function PromptItem({ prompt, className, promptIdWithVersionDraft
     const isCreatingVersion = promptIdWithVersionDraft === prompt.id;
     const isAnotherPromptCreatingVersion = promptIdWithVersionDraft !== null && !isCreatingVersion;
     const wasOpenBeforeVersionCreation = useRef<boolean>(false);
-    const { showError, showToast } = useToast();
+    const { showError } = useToast();
 
     async function loadPromptVersions(): Promise<PromptVersion[] | null> {
         setIsLoading(true);
@@ -188,6 +191,7 @@ export default function PromptItem({ prompt, className, promptIdWithVersionDraft
                 <Plus />
                 Create new Version
             </Button>
+            <DeletePromptButton prompt={prompt} disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion} onPromptDeleted={onPromptDeleted} className="h-20 shrink-0"/>
         </div>
     );
 }
