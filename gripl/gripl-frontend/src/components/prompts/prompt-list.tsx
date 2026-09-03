@@ -31,7 +31,6 @@ export default function PromptList({ prompts, promptIdWithVersionDraft, startVer
                 <PromptItem
                     key={prompt.id}
                     prompt={prompt}
-                    className="mb-4"
                     promptIdWithVersionDraft={promptIdWithVersionDraft}
                     startVersionCreation={startVersionCreation}
                     finishVersionCreation={finishVersionCreation}

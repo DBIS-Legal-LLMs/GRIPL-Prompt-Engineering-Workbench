@@ -112,7 +112,7 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
 
     return (
         <>
-            <Card className="w-full">
+            <Card className="w-full mt-3">
                 <CardHeader className="flex-row items-center justify-between py-4">
                     <CardTitle>Create new Prompt Version</CardTitle>
                 </CardHeader>

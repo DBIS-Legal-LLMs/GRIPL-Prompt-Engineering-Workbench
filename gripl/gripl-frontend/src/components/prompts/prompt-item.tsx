@@ -15,7 +15,6 @@ import DeletePromptButton from "@/components/prompts/delete-prompt-button";
 
 interface PromptItemProps {
     prompt: Prompt;
-    className?: string;
     promptIdWithVersionDraft: number | null;
     startVersionCreation: (promptId: number) => boolean;
     finishVersionCreation: () => void;
@@ -39,12 +38,12 @@ interface PromptItemProps {
  *   because another prompt is currently creating a version.
  * - When no ID is stored, this item may start a new version creation.
  * 
- * @param {PromptItemProps} props - The prompt to display, optional styling,
- * centrally managed version-creation state and handlers, and the callback
- * invoked after a successful deletion.
+ * @param {PromptItemProps} props - The prompt to display, centrally managed 
+ * version-creation state and handlers, and the callback invoked after a 
+ * successful deletion.
  * @returns {JSX.Element} The rendered prompt item component.
  */
-export default function PromptItem({ prompt, className, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation, onPromptDeleted }: PromptItemProps) {
+export default function PromptItem({ prompt, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation, onPromptDeleted }: PromptItemProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [promptVersions, setPromptVersions] = useState<PromptVersion[] | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +52,11 @@ export default function PromptItem({ prompt, className, promptIdWithVersionDraft
     const isAnotherPromptCreatingVersion = promptIdWithVersionDraft !== null && !isCreatingVersion;
     const wasOpenBeforeVersionCreation = useRef<boolean>(false);
     const { showError } = useToast();
+
+    const latestPromptVersion = promptVersions?.reduce((latest, current) =>
+        current.versionNumber > latest.versionNumber ? current : latest,
+        promptVersions?.[0]
+    );
 
     async function loadPromptVersions(): Promise<PromptVersion[] | null> {
         setIsLoading(true);
@@ -129,69 +133,88 @@ export default function PromptItem({ prompt, className, promptIdWithVersionDraft
         setIsOpen(wasOpenBeforeVersionCreation.current);
     }
 
-    return (
-        <div className="mb-1 flex w-full items-start gap-2">
-            <div className="min-w-0 flex-1">
-                <Collapsible open={isOpen} onOpenChange={handleOpenChange}>
-                    <CollapsibleTrigger className="w-full text-left">
-                        <Card className={`w-full ${className ?? ""}`}>
-                            <CardHeader className="flex-row items-center justify-between">
-                                <CardTitle>
-                                    {prompt.name}
-                                </CardTitle>
-                                {isOpen ? <ChevronDown /> : <ChevronUp />}
-                            </CardHeader>
-                        </Card>
-                    </CollapsibleTrigger>
+    function handleVersionDeleted(deletedVersionId: number) {
+        setPromptVersions((currentVersions) => currentVersions?.filter(version => version.id !== deletedVersionId) ?? null);
+    }
 
-                    <CollapsibleContent>
-                        <div className="space-y-3 px-4 pb-4 pt-1">
-                            {isLoading && (
-                                <Card>
+    return (
+        <Collapsible open={isOpen} onOpenChange={handleOpenChange} className="mb-4">
+            <div className="grid w-full grid-cols-[minmax(0,1fr)_178px_157px] items-start gap-x-2">
+                <CollapsibleTrigger className="min-w-0 text-left">
+                    <Card className={`w-full`}>
+                        <CardHeader className="flex-row items-center justify-between">
+                            <CardTitle>
+                                {prompt.name}
+                            </CardTitle>
+                            {isOpen ? <ChevronDown /> : <ChevronUp />}
+                        </CardHeader>
+                    </Card>
+                </CollapsibleTrigger>
+
+                <Button
+                    type="button"
+                    onClick={handleCreateVersion}
+                    disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion}
+                    className="h-20 w-full"
+                >
+                    <Plus />
+                    Create new Version
+                </Button>
+
+                <DeletePromptButton
+                    prompt={prompt}
+                    disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion}
+                    onPromptDeleted={onPromptDeleted}
+                    className="h-20 w-full"
+                />
+            </div>
+
+            <CollapsibleContent className="space-y-3 pb-0">
+                <div className="grid w-full grid-cols-[minmax(0,1fr)_178px_157px] items-start gap-x-2">
+                    <div className="min-w-0 ml-8">
+                        {isLoading && (
+                            <Card>
+                                <CardContent className="mt-3 py-6 text-sm text-muted-foreground">
+                                    Loading versions ...
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {loadError && <p className="text-red-500">{loadError}</p>}
+
+                        {promptVersions !== null && promptVersions.length === 0 &&
+                            !isCreatingVersion && (
+                                <Card className="mt-3">
                                     <CardContent className="py-6 text-sm text-muted-foreground">
-                                        Loading versions ...
+                                        There are no versions of this prompt yet.
                                     </CardContent>
                                 </Card>
                             )}
 
-                            {loadError && <p className="text-red-500">{loadError}</p>}
+                        {isCreatingVersion && promptVersions !== null && (
+                            <CreatePromptVersionCard
+                                idOfParentPrompt={prompt.id}
+                                previousVersion={promptVersions[0] ?? undefined}
+                                onVersionCreated={handleVersionCreated}
+                                onCancel={handleVersionCreationCancelled}
+                            />
+                        )}
+                    </div>
 
-                            {promptVersions !== null && promptVersions.length === 0 &&
-                                !isCreatingVersion && (
-                                    <Card>
-                                        <CardContent className="py-6 text-sm text-muted-foreground">
-                                            There are no versions of this prompt yet.
-                                        </CardContent>
-                                    </Card>
-                                )}
+                    <div />
+                    <div />
+                </div>
 
-                            {isCreatingVersion && promptVersions !== null && (
-                                <CreatePromptVersionCard
-                                    idOfParentPrompt={prompt.id}
-                                    previousVersion={promptVersions[0] ?? undefined}
-                                    onVersionCreated={handleVersionCreated}
-                                    onCancel={handleVersionCreationCancelled}
-                                />
-                            )}
-
-                            {promptVersions?.map((version) => (
-                                <PromptVersionItem key={version.id} version={version} />
-                            ))}
-                        </div>
-                    </CollapsibleContent>
-                </Collapsible>
-            </div>
-
-            <Button
-                type="button"
-                onClick={handleCreateVersion}
-                disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion}
-                className="h-20 shrink-0"
-            >
-                <Plus />
-                Create new Version
-            </Button>
-            <DeletePromptButton prompt={prompt} disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion} onPromptDeleted={onPromptDeleted} className="h-20 shrink-0"/>
-        </div>
+                {promptVersions?.map((version) => (
+                    <PromptVersionItem
+                        key={version.id}
+                        version={version}
+                        isLatestVersion={version.id === latestPromptVersion?.id}
+                        disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion}
+                        onVersionDeleted={handleVersionDeleted}
+                    />
+                ))}
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
