@@ -2,6 +2,7 @@ package de.mertendieckmann.griplbackend.adapter.web
 
 import de.mertendieckmann.griplbackend.application.PromptManagementService
 import de.mertendieckmann.griplbackend.model.dto.ClassificationScope
+import de.mertendieckmann.griplbackend.model.dto.DefaultPromptSelectionOverview
 import de.mertendieckmann.griplbackend.model.dto.Prompt
 import de.mertendieckmann.griplbackend.model.dto.PromptVersion
 import de.mertendieckmann.griplbackend.model.dto.Variable
@@ -123,6 +124,16 @@ class PromptController(
         
         return ResponseEntity.noContent().build()
     }
+
+    @Operation(
+        summary = "Get default prompt selector data",
+        description = "Returns compact meta data about the prompt versions available for default prompt selection " +
+            "and the currently configured default selection. " + 
+            "The defaultSelection field is null when no default version is configured."
+    )
+    @GetMapping("/default-selection", produces = [MediaType.APPLICATION_JSON_VALUE])
+    fun getDefaultPromptSelectionOverview(): DefaultPromptSelectionOverview =
+        promptManagementService.getDefaultPromptSelectionOverview()
 }
 
 

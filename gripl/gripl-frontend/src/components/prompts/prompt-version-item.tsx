@@ -10,6 +10,7 @@ import DeletePromptVersionButton from "@/components/prompts/delete-prompt-versio
 
 interface PromptVersionItemProps {
     version: PromptVersion;
+    isDefault: boolean;
     isLatestVersion: boolean;
     disabled?: boolean;
     onVersionDeleted: (promptVersionId: number) => void;
@@ -17,13 +18,16 @@ interface PromptVersionItemProps {
 
 /**
  * Displays a prompt version card that is collapsible. In closed state, the version number, 
- * classification scope, default status and commit message is visible. When expanded, the 
+ * classification scope, default status and commit message are visible. When expanded, the 
  * prompt template is displayed.
+ * 
+ * The default status is supplied separately because the full prompt version may have been 
+ * loaded before the default selection changed.
  * 
  * @param {PromptVersionItemProps} props - The prompt version object that should be displayed.
  * @returns {JSX.Element} The rendered prompt version item component.
  */
-export default function PromptVersionItem({ version, isLatestVersion, disabled, onVersionDeleted }: PromptVersionItemProps) {
+export default function PromptVersionItem({ version, isDefault, isLatestVersion, disabled, onVersionDeleted }: PromptVersionItemProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -36,7 +40,7 @@ export default function PromptVersionItem({ version, isLatestVersion, disabled, 
                                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                                     <CardTitle>Version {version.versionNumber}</CardTitle>
                                     <Badge>{classificationScopeLabels[version.classificationScope]}</Badge>
-                                    {version.isDefault ? <Badge>Default</Badge> : <Badge className="invisible">Default</Badge>}
+                                    {isDefault ? <Badge>Default</Badge> : <Badge className="invisible">Default</Badge>}
                                 </div>
                             </CollapsibleTrigger>
 

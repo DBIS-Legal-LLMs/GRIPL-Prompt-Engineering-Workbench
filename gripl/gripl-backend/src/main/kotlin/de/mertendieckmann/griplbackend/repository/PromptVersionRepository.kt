@@ -2,6 +2,7 @@ package de.mertendieckmann.griplbackend.repository
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import de.mertendieckmann.griplbackend.model.dto.ClassificationScope
+import de.mertendieckmann.griplbackend.model.dto.DefaultPromptSelectionCandidate
 import de.mertendieckmann.griplbackend.model.dto.PromptVersion
 import de.mertendieckmann.griplbackend.model.dto.Variable
 import org.postgresql.util.PGobject
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Repository
 
 /**
  * Repository for managing prompt versions.
- * 
+ *
  * Provides methods to retrieve prompt version history, retrieve a single version,
  * create new versions, manage the default version, and delete versions from the database.
  */
@@ -106,7 +107,7 @@ class PromptVersionRepository(
             VALUES (?, ?, ?, ?::jsonb, ?::classification_scope, ?, FALSE)
             RETURNING id
         """.trimIndent()
-        
+
         return jdbc.queryForObject(
             sql,
             Long::class.java,
@@ -118,20 +119,23 @@ class PromptVersionRepository(
             commitMessage
         ) ?: throw IllegalStateException("Database did not return an ID for the created prompt version.")
     }
-    
+
     /**
      * Returns the default prompt version or null if no default version is set.
-     * 
+     *
      * @return The default prompt version if set, otherwise null
      */
     fun getDefaultPromptVersion(): PromptVersion? {
         val sql = "SELECT * FROM prompt_version WHERE is_default = TRUE"
         return jdbc.query(sql, mapper).firstOrNull()
     }
-    
+
     /**
      * Sets the default status of the prompt version with the given ID and returns the number of rows updated.
      *
+     * The caller is responsible for unsetting any previously configured default version before this method 
+     * is invoked.
+     * 
      * @param id The ID of the prompt version to set as default
      * @return The number of rows updated (should be 0 or 1)
      */
@@ -142,12 +146,39 @@ class PromptVersionRepository(
 
     /**
      * Removes the default status of the prompt version currently set as the default.
-     * 
+     *
      * @return The number of rows updated (should be 0 or 1)
      */
     fun unsetDefaultPromptVersion(): Int {
         val sql = "UPDATE prompt_version SET is_default = FALSE WHERE is_default = TRUE"
         return jdbc.update(sql)
+    }
+
+    /**
+     * Returns the lightweight prompt version data required to build the DefaultPromptSelectionOverview.
+     *
+     * @return A list of default prompt selection candidates, ordered by prompt ID and descending version number
+     */
+    fun getDefaultPromptSelectionCandidates(): List<DefaultPromptSelectionCandidate> {
+        val sql = """
+            SELECT
+                pv.prompt_id,
+                pv.id AS prompt_version_id,
+                pv.version_number,
+                pv.is_default
+            FROM prompt_version pv 
+            JOIN prompt p ON p.id = pv.prompt_id
+            ORDER BY p.created_at ASC, pv.version_number DESC
+        """.trimIndent()
+
+        return jdbc.query(sql) { rs, _ ->
+            DefaultPromptSelectionCandidate(
+                promptId = rs.getLong("prompt_id"),
+                promptVersionId = rs.getLong("prompt_version_id"),
+                versionNumber = rs.getInt("version_number"),
+                isDefault = rs.getBoolean("is_default")
+            )
+        }
     }
 
     /**

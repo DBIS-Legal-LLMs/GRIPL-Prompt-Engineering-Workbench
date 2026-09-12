@@ -1,8 +1,12 @@
 package de.mertendieckmann.griplbackend.application
 
 import de.mertendieckmann.griplbackend.model.dto.ClassificationScope
+import de.mertendieckmann.griplbackend.model.dto.DefaultPromptSelection
+import de.mertendieckmann.griplbackend.model.dto.DefaultPromptSelectionOverview
 import de.mertendieckmann.griplbackend.model.dto.Prompt
+import de.mertendieckmann.griplbackend.model.dto.PromptSelectionOption
 import de.mertendieckmann.griplbackend.model.dto.PromptVersion
+import de.mertendieckmann.griplbackend.model.dto.PromptVersionSelectionOption
 import de.mertendieckmann.griplbackend.model.dto.Variable
 import de.mertendieckmann.griplbackend.repository.PromptRepository
 import de.mertendieckmann.griplbackend.repository.PromptVersionRepository
@@ -11,10 +15,10 @@ import org.springframework.transaction.annotation.Transactional
 
 /**
  * Service for managing the prompt library.
- * 
+ *
  * Coordinates prompt and prompt-version use cases for the frontend, including
- * creation, renaming, versioning, deletion, and selecting the default version, 
- * by delegating persistence operations to the prompt repositories and handling 
+ * creation, renaming, versioning, deletion, and selecting the default version,
+ * by delegating persistence operations to the prompt repositories and handling
  * business logic.
  */
 @Service
@@ -91,7 +95,7 @@ class PromptManagementService(
      */
     fun renamePrompt(promptId: Long, newName: String) {
         require(newName.isNotBlank()) { "New prompt name must not be blank" }
-        
+
         if (promptRepository.updatePromptName(promptId, newName) != 1) {
             throw PromptNotFoundException(promptId)
         }
@@ -108,7 +112,7 @@ class PromptManagementService(
 
     /**
      * Deletes a prompt version, but only if it is the latest version.
-     * 
+     *
      * @param promptVersionId The ID of the prompt version to delete
      * @throws PromptVersionConflictException if the version is not the latest version
      */
@@ -152,6 +156,46 @@ class PromptManagementService(
      * @return The default PromptVersion or null if no default prompt version has been set
      */
     fun getDefaultPromptVersion(): PromptVersion? = promptVersionRepository.getDefaultPromptVersion()
+
+    /**
+     * Returns meta information about the prompt versions available for default prompt selection and the
+     * currently selected default version. Prompts without versions are not included because they have 
+     * no selectable version.
+     *
+     * @return Overview of selectable prompt versions and the active default selection
+     */
+    @Transactional(readOnly = true)
+    fun getDefaultPromptSelectionOverview(): DefaultPromptSelectionOverview {
+        val candidates = promptVersionRepository.getDefaultPromptSelectionCandidates()
+
+        val prompts = candidates
+            .groupBy { it.promptId }
+            .map { (promptId, promptCandidates) ->
+                PromptSelectionOption(
+                    promptId = promptId,
+                    versions = promptCandidates.map { candidate ->
+                        PromptVersionSelectionOption(
+                            id = candidate.promptVersionId,
+                            versionNumber = candidate.versionNumber
+                        )
+                    }
+                )
+            }
+
+        val defaultSelection = candidates
+            .firstOrNull { it.isDefault }
+            ?.let { candidate ->
+                DefaultPromptSelection(
+                    promptId = candidate.promptId,
+                    promptVersionId = candidate.promptVersionId
+                )
+            }
+
+        return DefaultPromptSelectionOverview(
+            prompts = prompts,
+            defaultSelection = defaultSelection
+        )
+    }
 
     /**
      * Returns a list of all prompts in the database.

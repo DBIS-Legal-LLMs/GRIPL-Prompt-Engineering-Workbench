@@ -1,4 +1,5 @@
 import { Prompt } from "@/models/dto/Prompt";
+import { DefaultPromptSelection } from "@/models/dto/DefaultPromptSelectionOverview";
 import PromptItem from "./prompt-item";
 
 interface PromptListProps {
@@ -7,20 +8,23 @@ interface PromptListProps {
     startVersionCreation: (promptId: number) => boolean;
     finishVersionCreation: () => void;
     onPromptDeleted: (promptId: number) => void;
+    onVersionCreated: () => void;
+    onVersionDeleted: () => void;
+    defaultSelection: DefaultPromptSelection | null;
 }
 
 /**
  * Displays a list of prompts by rendering one PromptItem for each entry.
  * Displays an empty-state message when no prompts are available.
  * 
- * Forwards the centrally managed version-creation state and handlers, as well
- * as the deletion callback, to every prompt item.
+ * Forwards the centrally managed version-creation state, mutation callbacks,
+ * and current default selection to every prompt item.
  * 
  * @param {PromptListProps} props - The prompts to display, version-creation
- * state and handlers, and the callback invoked after a prompt is deleted.
+ * state and handlers, mutation callbacks, and the current default selection.
  * @returns {JSX.Element} The rendered prompt list component.
  */
-export default function PromptList({ prompts, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation, onPromptDeleted }: PromptListProps) {
+export default function PromptList({ prompts, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation, onPromptDeleted, onVersionCreated, onVersionDeleted, defaultSelection }: PromptListProps) {
     if (prompts.length === 0) {
         return <p>No prompts available yet.</p>;
     }
@@ -35,6 +39,9 @@ export default function PromptList({ prompts, promptIdWithVersionDraft, startVer
                     startVersionCreation={startVersionCreation}
                     finishVersionCreation={finishVersionCreation}
                     onPromptDeleted={onPromptDeleted}
+                    onVersionCreated={onVersionCreated}
+                    onVersionDeleted={onVersionDeleted}
+                    defaultSelection={defaultSelection}
                 />
             ))}
         </div>

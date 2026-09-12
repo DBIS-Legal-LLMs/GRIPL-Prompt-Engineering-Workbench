@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Prompt } from "@/models/dto/Prompt";
 import { PromptVersion } from "@/models/dto/PromptVersion";
+import { DefaultPromptSelection } from "@/models/dto/DefaultPromptSelectionOverview";
 import getPromptVersions from "@/actions/get-prompt-versions";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,9 @@ interface PromptItemProps {
     startVersionCreation: (promptId: number) => boolean;
     finishVersionCreation: () => void;
     onPromptDeleted: (promptId: number) => void;
+    onVersionCreated: () => void;
+    onVersionDeleted: () => void;
+    defaultSelection: DefaultPromptSelection | null;
 }
 
 /**
@@ -27,7 +31,9 @@ interface PromptItemProps {
  * 
  * Prompt versions are lazy loaded when the item is opened for the first time.
  * The loaded versions remain in local component state so subsequent opens and
- * version creations do not issue another request.
+ * version creations do not issue another request.  
+ * The current default selection is passed from PromptLibrary so loaded prompt
+ * versions can display their default status without being fetched again.
  * 
  * The active version creation is managed centrally by PromptLibrary and passed
  * through PromptList to this component. This component compares 
@@ -43,7 +49,7 @@ interface PromptItemProps {
  * successful deletion.
  * @returns {JSX.Element} The rendered prompt item component.
  */
-export default function PromptItem({ prompt, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation, onPromptDeleted }: PromptItemProps) {
+export default function PromptItem({ prompt, promptIdWithVersionDraft, startVersionCreation, finishVersionCreation, onPromptDeleted, onVersionCreated, onVersionDeleted, defaultSelection }: PromptItemProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [promptVersions, setPromptVersions] = useState<PromptVersion[] | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -126,6 +132,7 @@ export default function PromptItem({ prompt, promptIdWithVersionDraft, startVers
     function handleVersionCreated(createdVersion: PromptVersion) {
         setPromptVersions((currentVersions) => [createdVersion, ...(currentVersions ?? [])]);
         finishVersionCreation();
+        onVersionCreated();
     }
 
     function handleVersionCreationCancelled() {
@@ -135,6 +142,7 @@ export default function PromptItem({ prompt, promptIdWithVersionDraft, startVers
 
     function handleVersionDeleted(deletedVersionId: number) {
         setPromptVersions((currentVersions) => currentVersions?.filter(version => version.id !== deletedVersionId) ?? null);
+        onVersionDeleted();
     }
 
     return (
@@ -209,6 +217,7 @@ export default function PromptItem({ prompt, promptIdWithVersionDraft, startVers
                     <PromptVersionItem
                         key={version.id}
                         version={version}
+                        isDefault={defaultSelection?.promptVersionId === version.id}
                         isLatestVersion={version.id === latestPromptVersion?.id}
                         disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion}
                         onVersionDeleted={handleVersionDeleted}
