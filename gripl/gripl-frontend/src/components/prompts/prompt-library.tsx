@@ -16,10 +16,10 @@ interface PromptLibraryProps {
 /**
  * Displays the prompt library page, containing a list of prompts and controls for selecting the default prompt version.
  * 
- * Manages the local prompt list after prompt creation and deletion, centrally coordinates prompt-version drafts,
- * ensuring that only one prompt version can be created at a time, and loads the compact default-selection overview only 
- * when prompts are available. The overview is refreshed after prompt or prompt-version mutations so the selector remains 
- * up to date.
+ * Manages the local prompt list after prompt creation, renaming, and deletion. It centrally coordinates prompt-version 
+ * creation and prompt renaming, ensuring that only one operation of each kind is active at a time. It loads the compact 
+ * default-selection overview only when prompts are available, and refreshes it after prompt or prompt-version mutations 
+ * so the selector remains up to date.
  * 
  * @param {PromptLibraryProps} props - The prompts initially loaded from the backend, or null when loading failed.
  * @returns {JSX.Element} The rendered prompt library component.
@@ -35,6 +35,8 @@ export default function PromptLibrary({ initialPrompts }: PromptLibraryProps) {
      * render the CreatePromptVersionCard themselves or disable their create button.
      */
     const [promptIdWithVersionDraft, setPromptIdWithVersionDraft] = useState<number | null>(null);
+
+    const [promptIdWithRenameDraft, setPromptIdWithRenameDraft] = useState<number | null>(null);
 
     async function refreshSelectionOverview() {
         if (prompts === null || prompts.length === 0) {
@@ -73,9 +75,36 @@ export default function PromptLibrary({ initialPrompts }: PromptLibraryProps) {
 
     function handlePromptDeleted(deletedPromptId: number) {
         setPrompts((currentPrompts) => currentPrompts?.filter(prompt => prompt.id !== deletedPromptId) ?? null);
+        
         if (promptIdWithVersionDraft === deletedPromptId) {
             setPromptIdWithVersionDraft(null);
         }
+
+        if (promptIdWithRenameDraft === deletedPromptId) {
+            setPromptIdWithRenameDraft(null);
+        }
+    }
+
+    function handleStartPromptRename(promptId: number): boolean {
+        if (promptIdWithRenameDraft !== null) {
+            return false; 
+        }
+
+        setPromptIdWithRenameDraft(promptId);
+        return true;
+    }
+
+    function handleFinishPromptRename() {
+        setPromptIdWithRenameDraft(null);
+    }
+
+    function handlePromptRenamed(promptId: number, newName: string) {
+        setPrompts((currentPrompts) => 
+            currentPrompts?.map(prompt => 
+                prompt.id === promptId 
+                    ? { ...prompt, name: newName } 
+                    : prompt
+            ) ?? null);
     }
 
     /**
@@ -147,6 +176,10 @@ export default function PromptLibrary({ initialPrompts }: PromptLibraryProps) {
                         onPromptDeleted={handlePromptDeleted}
                         onVersionCreated={handleVersionCreated}
                         onVersionDeleted={handleVersionDeleted}
+                        promptIdWithRenameDraft={promptIdWithRenameDraft}
+                        startPromptRename={handleStartPromptRename}
+                        finishPromptRename={handleFinishPromptRename}
+                        onPromptRenamed={handlePromptRenamed}
                         defaultSelection={selectionOverview?.defaultSelection ?? null}
                     />
                 )}
