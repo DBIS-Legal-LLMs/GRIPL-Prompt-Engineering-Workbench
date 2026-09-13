@@ -19,7 +19,7 @@ interface PromptVersionItemProps {
 /**
  * Displays a prompt version card that is collapsible. In closed state, the version number, 
  * classification scope, default status and commit message are visible. When expanded, the 
- * prompt template is displayed.
+ * prompt template and its variables are displayed.
  * 
  * The default status is supplied separately because the full prompt version may have been 
  * loaded before the default selection changed.
@@ -55,10 +55,29 @@ export default function PromptVersionItem({ version, isDefault, isLatestVersion,
                     </div>
 
                     <CollapsibleContent>
-                        <CardContent className="pt-2">
-                            <pre className="whitespace-pre-wrap rounded-md border bg-gray-100 p-3 text-sm">
-                                {version.template}
-                            </pre>
+                        <CardContent className="space-y-6 pt-1">
+                            <div className="space-y-3">
+                                <p className="text-sm font-medium">Template</p>
+                                <pre className="whitespace-pre-wrap rounded-md border bg-gray-100 p-3 text-sm">
+                                    {version.template}
+                                </pre>
+                            </div>
+
+                            <div className="space-y-2">
+                                {version.variables.length !== 0 && (
+                                    <>
+                                        <p className="text-sm font-medium">Variables</p>
+                                        <div className="grid grid-cols-[fit-content(14rem)_minmax(0,1fr)] gap-x-2 gap-y-2 px-3 pb-3 text-sm">
+                                            {version.variables.map((variable) => (
+                                                <div key={variable.name} className="contents">
+                                                    <span className="min-w-0 whitespace-normal break-words font-mono font-semibold">{`{${variable.name}}:`}</span>
+                                                    <span className="min-w-0 whitespace-pre-wrap break-words">{variable.value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </CardContent>
                     </CollapsibleContent>
                 </Card>
