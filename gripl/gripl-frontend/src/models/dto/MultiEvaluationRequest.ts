@@ -12,7 +12,7 @@ export interface MultiEvaluationRequest {
     ragMode: string;
     evaluateRag: boolean;
     activitiesOnly: boolean;
-    promptConfiguration?: EvaluationPromptConfiguration;
+    promptConfigurations?: EvaluationPromptConfiguration[];
 }
 
 export interface ModelRunConfig {

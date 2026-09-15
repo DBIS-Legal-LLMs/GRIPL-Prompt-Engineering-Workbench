@@ -1,17 +1,20 @@
 "use client";
 
-import React, { JSX } from "react";
-import {Dataset} from "@/models/dto/Dataset";
-import {MultiEvaluationRequest} from "@/models/dto/MultiEvaluationRequest";
-import {useEvaluationConfig} from "@/hooks/evaluation/use-evaluation-config";
-import {useYamlImportExport} from "@/hooks/evaluation/use-yaml-import-export";
+import React, { JSX, useCallback, useState } from "react";
+import { Dataset } from "@/models/dto/Dataset";
+import { EvaluationPromptConfiguration, MultiEvaluationRequest } from "@/models/dto/MultiEvaluationRequest";
+import { useEvaluationConfig } from "@/hooks/evaluation/use-evaluation-config";
+import { useYamlImportExport } from "@/hooks/evaluation/use-yaml-import-export";
 import EvaluationConfigHeader from "@/components/evaluation/config/evaluation-config-header";
 import EvaluationConfigDefaultSettings from "@/components/evaluation/config/evaluation-config-default-settings";
 import EvaluationConfigDatasetSettings from "@/components/evaluation/config/evaluation-config-dataset-settings";
 import EvaluationConfigModelsSettings from "@/components/evaluation/config/evaluation-config-models-settings";
-import {nextLabel} from "@/lib/evaluation-config-utils";
+import { nextLabel } from "@/lib/evaluation-config-utils";
 import { Prompt } from "@/models/dto/Prompt";
 import EvaluationConfigPromptSettings from "./evaluation-config-prompt-settings";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 interface EvaluationConfigCardMultiProps {
     className?: string;
@@ -24,6 +27,20 @@ interface EvaluationConfigCardMultiProps {
 
 export default function EvaluationConfig({ className, children, datasets, prompts, onPromptCreated, onMultiConfigChanged }: EvaluationConfigCardMultiProps) {
     const config = useEvaluationConfig(datasets, onMultiConfigChanged);
+
+    const [isComparisonPromptOpen, setIsComparisonPromptOpen] = useState(false);
+
+    const handlePrimaryPromptConfigChanged = useCallback((promptConfiguration: EvaluationPromptConfiguration | null) => {
+        config.setPromptConfiguration(0, promptConfiguration);
+    },
+        [config.setPromptConfiguration]
+    );
+
+    const handleComparisonPromptConfigChanged = useCallback((promptConfiguration: EvaluationPromptConfiguration | null) => {
+        config.setPromptConfiguration(1, promptConfiguration);
+    },
+        [config.setPromptConfiguration]
+    );
 
     const { fileInputRef, onClickImportYaml, onFileChange, onClickExportYaml } = useYamlImportExport({
         availableEvaluationEndpoints: config.availableEvaluationEndpoints,
@@ -105,11 +122,33 @@ export default function EvaluationConfig({ className, children, datasets, prompt
                     />
                 </div>
 
-                <EvaluationConfigPromptSettings
-                    prompts={prompts}
-                    onPromptConfigChanged={config.setPromptConfiguration}
-                    onPromptCreated={onPromptCreated}
-                />
+                <div className="flex flex-row gap-8">
+                    <EvaluationConfigPromptSettings
+                        instanceId="a"
+                        title={isComparisonPromptOpen ? "Prompt A Settings" : "Prompt Settings"}
+                        loadDefaultPrompt
+                        prompts={prompts}
+                        onPromptConfigChanged={handlePrimaryPromptConfigChanged}
+                        onPromptCreated={onPromptCreated}
+                        onAddPrompt={() => setIsComparisonPromptOpen(true)}
+                        canAddPrompt={!isComparisonPromptOpen}
+                    />
+
+                    {isComparisonPromptOpen && (
+                        <EvaluationConfigPromptSettings
+                            instanceId="b"
+                            title="Prompt B Settings"
+                            prompts={prompts}
+                            selectNewPromptOnMount={true}
+                            onPromptConfigChanged={handleComparisonPromptConfigChanged}
+                            onPromptCreated={onPromptCreated}
+                            onRemove={() => {
+                                config.setPromptConfiguration(1, null);
+                                setIsComparisonPromptOpen(false);
+                            }}
+                        />
+                    )}
+                </div>
 
                 <EvaluationConfigModelsSettings
                     models={config.models}

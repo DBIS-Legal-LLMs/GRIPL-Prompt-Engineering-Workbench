@@ -22,8 +22,15 @@ import { useEffect, useRef, useState } from "react";
 
 interface EvaluationConfigPromptSettingsProps {
     prompts: Prompt[];
+    instanceId: "a" | "b";
+    title: string;
+    loadDefaultPrompt?: boolean;
+    selectNewPromptOnMount?: boolean;
     onPromptConfigChanged: (promptConfig: EvaluationPromptConfiguration | null) => void;
     onPromptCreated: (createdPrompt: Prompt) => void;
+    onRemove?: () => void;
+    onAddPrompt?: () => void;
+    canAddPrompt?: boolean;
 }
 
 /**
@@ -33,11 +40,11 @@ interface EvaluationConfigPromptSettingsProps {
  * for handling prompt configuration changes and prompt creation.
  * @returns {JSX.Element} The rendered evaluation config prompt settings component.
  */
-export default function EvaluationConfigPromptSettings({ prompts, onPromptConfigChanged, onPromptCreated }: EvaluationConfigPromptSettingsProps) {
+export default function EvaluationConfigPromptSettings({ prompts, instanceId, title, loadDefaultPrompt, selectNewPromptOnMount = false, onPromptConfigChanged, onPromptCreated, onRemove, onAddPrompt, canAddPrompt }: EvaluationConfigPromptSettingsProps) {
     const { showToast, showError } = useToast();
 
     const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
-    const [isNewPrompt, setIsNewPrompt] = useState(false);
+    const [isNewPrompt, setIsNewPrompt] = useState(selectNewPromptOnMount);
     const [newPromptName, setNewPromptName] = useState("");
     const [versions, setVersions] = useState<PromptVersion[]>([]);
     const [selectedVersion, setSelectedVersion] = useState<PromptVersion | null>(null);
@@ -52,7 +59,7 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
     const [commitMessage, setCommitMessage] = useState("");
     const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [isEditorOpen, setIsEditorOpen] = useState(selectNewPromptOnMount);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const variableValueTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -84,6 +91,8 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
     }
 
     useEffect(() => {
+        if (!loadDefaultPrompt) return;
+
         let isActive = true;
 
         async function selectDefaultPromptVersion() {
@@ -115,7 +124,7 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
         return () => {
             isActive = false;
         };
-    }, []);
+    }, [loadDefaultPrompt]);
 
     useEffect(() => {
         if (selectedPromptId === null && !isNewPrompt) {
@@ -367,11 +376,10 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
         if (isEditorOpen) {
             resizeTextarea();
         }
-    }, [template, isEditorOpen]);
+    }, [template, isEditorOpen, canAddPrompt]);
 
     function handleTemplateChange(templateValue: string) {
         setTemplate(templateValue);
-        requestAnimationFrame(resizeTextarea);
     }
 
     function resizeVariableValueTextarea() {
@@ -394,9 +402,40 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
 
     return (
         <>
-            <Card>
+            <Card className="w-full h-fit">
                 <CardHeader>
-                    <CardTitle className="text-lg">Prompt Settings</CardTitle>
+                    <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="text-lg">{title}</CardTitle>
+
+                        <div className="flex items-center gap-2 h-8">
+                            {canAddPrompt && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={onAddPrompt}
+                                    disabled={isCreating}
+                                    className="gap-2"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Add Prompt
+                                </Button>
+                            )}
+
+                            {onRemove && (
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={onRemove}
+                                    disabled={isCreating}
+                                    title="Remove prompt"
+                                    className="gap-2"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Remove
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
@@ -428,13 +467,16 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
                                 value={selectedVersion?.id.toString() ?? ""}
                                 onValueChange={handleVersionSelectionChanged}
                                 disabled={isLoadingVersions || versions.length === 0 || isCreating}>
-                                <SelectTrigger>
+                                <SelectTrigger className="disabled:cursor-default">
                                     <SelectValue placeholder={versions.length === 0 ? "No versions available" : "Select version"} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {versions.map(version => (
                                         <SelectItem key={version.id} value={version.id.toString()}>
                                             V{version.versionNumber}
+                                            {version.id === selectedVersion?.id && hasPromptChanges
+                                                ? " (changed)"
+                                                : ""}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -458,12 +500,12 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
                                     {Object.values(ClassificationScope).map((scope) => (
                                         <label
                                             key={scope}
-                                            htmlFor={`evaluation-classification-scope-${scope}`}
+                                            htmlFor={`evaluation-${instanceId}-classification-scope-${scope}`}
                                             className="flex cursor-pointer flex-col items-center gap-2">
                                             <input
-                                                id={`evaluation-classification-scope-${scope}`}
+                                                id={`evaluation-${instanceId}-classification-scope-${scope}`}
                                                 type="radio"
-                                                name="evaluation-classification-scope"
+                                                name={`evaluation-${instanceId}-classification-scope`}
                                                 value={scope}
                                                 checked={classificationScope === scope}
                                                 onChange={() => setClassificationScope(scope)}
@@ -478,9 +520,9 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
 
                             {/*________________________ Template ________________________*/}
                             <div className="space-y-2">
-                                <Label htmlFor={`evaluation-prompt-template`}>Template</Label>
+                                <Label htmlFor={`evaluation-${instanceId}-prompt-template`}>Template</Label>
                                 <Textarea
-                                    id={`evaluation-prompt-template`}
+                                    id={`evaluation-${instanceId}-prompt-template`}
                                     ref={textareaRef}
                                     value={template}
                                     onChange={(event) => handleTemplateChange(event.target.value)}
@@ -664,9 +706,9 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
 
                     {isNewPrompt && (
                         <div className="space-y-2">
-                            <Label htmlFor={`evaluation-prompt-new-prompt-name`}>Prompt name</Label>
+                            <Label htmlFor={`evaluation-${instanceId}-prompt-new-prompt-name`}>Prompt name</Label>
                             <Input
-                                id={`evaluation-prompt-new-prompt-name`}
+                                id={`evaluation-${instanceId}-prompt-new-prompt-name`}
                                 value={newPromptName}
                                 onChange={(event) => setNewPromptName(event.target.value)}
                                 disabled={isCreating}
@@ -676,9 +718,9 @@ export default function EvaluationConfigPromptSettings({ prompts, onPromptConfig
                     )}
 
                     <div className="space-y-2">
-                        <Label htmlFor={`evaluation-prompt-commit-message`}>Commit message</Label>
+                        <Label htmlFor={`evaluation-${instanceId}-prompt-commit-message`}>Commit message</Label>
                         <Input
-                            id={`evaluation-prompt-commit-message`}
+                            id={`evaluation-${instanceId}-prompt-commit-message`}
                             value={commitMessage}
                             onChange={(event) => setCommitMessage(event.target.value)}
                             disabled={isCreating}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import fetchAnalysisEndpoints from "@/actions/analysis-endpoints";
 import { Dataset } from "@/models/dto/Dataset";
 import { EvaluationPromptConfiguration, ModelRunConfig, MultiEvaluationRequest } from "@/models/dto/MultiEvaluationRequest";
@@ -48,7 +48,8 @@ export function useEvaluationConfig(
     // Evaluation scope: score activities only vs. all BPMN elements
     const [activitiesOnly, setActivitiesOnly] = useState<boolean>(false);
 
-    const [promptConfiguration, setPromptConfiguration] = useState<EvaluationPromptConfiguration | null>(null);
+    const [promptConfigurations, setPromptConfigurations] = useState<Array<EvaluationPromptConfiguration | null>>([null, null]);
+    const configuredPrompts = promptConfigurations.filter((prompt): prompt is EvaluationPromptConfiguration => prompt !== null);
 
     useEffect(() => {
         fetchAnalysisEndpoints().then((eps) => {
@@ -100,11 +101,26 @@ export function useEvaluationConfig(
             ragMode,
             evaluateRag: useRag && evaluateRag,
             activitiesOnly,
-            promptConfiguration: promptConfiguration || undefined,
+            promptConfigurations: configuredPrompts.length > 0 ? configuredPrompts : undefined,
         };
 
         onMultiConfigChanged(multi);
-    }, [models, selectedDatasets, selectedTestCaseIds, effectiveDefaultEndpoint, seed, maxConcurrent, repetitions, useRag, ragMode, evaluateRag, activitiesOnly, onMultiConfigChanged, promptConfiguration]);
+    }, [models, selectedDatasets, selectedTestCaseIds, effectiveDefaultEndpoint, seed, maxConcurrent, repetitions, useRag, ragMode, evaluateRag, activitiesOnly, onMultiConfigChanged, promptConfigurations]);
+
+    const setPromptConfiguration = useCallback((index: number, promptConfiguration: EvaluationPromptConfiguration | null) => {
+        setPromptConfigurations((currentConfigurations) => {
+            if (currentConfigurations[index] === promptConfiguration) {
+                return currentConfigurations;
+            }
+
+            return currentConfigurations.map(
+                (currentConfiguration, currentIndex) => 
+                    currentIndex === index
+                        ? promptConfiguration
+                        : currentConfiguration
+            )
+        });
+    }, []);
 
     function addModel() {
         setModels((prev) => [...prev, newModelRow(prev.length + 1)]);
@@ -150,7 +166,7 @@ export function useEvaluationConfig(
         ragMode,
         evaluateRag,
         activitiesOnly,
-        promptConfiguration,
+        promptConfigurations,
         setDefaultEndpointChoice,
         setDefaultPresetEndpoint,
         setDefaultCustomEndpoint,
