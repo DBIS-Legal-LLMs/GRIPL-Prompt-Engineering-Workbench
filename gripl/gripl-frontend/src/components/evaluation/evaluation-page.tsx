@@ -28,6 +28,7 @@ import {ColorProvider, useColors} from "@/components/evaluation/charts/common/co
 import MetricsTable from "@/components/evaluation/charts/aggregated/metrics-table";
 import {useToast} from "@/components/ui/toast";
 import {toErrorMessage} from "@/lib/http-error";
+import { Prompt } from "@/models/dto/Prompt";
 
 type ModelReportEnvelope = {
     modelLabel: string;
@@ -37,9 +38,11 @@ type ModelReportEnvelope = {
 
 interface EvaluationPageProps {
     datasets: Dataset[];
+    prompts: Prompt[];
+    onPromptCreated: (createdPrompt: Prompt) => void;
 }
 
-export default function EvaluationPage({ datasets }: EvaluationPageProps) {
+export default function EvaluationPage({ datasets, prompts, onPromptCreated }: EvaluationPageProps) {
     const [evaluationRequest, setEvaluationRequest] = useState<MultiEvaluationRequest | null>(null);
 
     const [metadata, setMetadata] = useState<EvaluationMetadataReport | null>(null);
@@ -547,7 +550,7 @@ export default function EvaluationPage({ datasets }: EvaluationPageProps) {
 
     return (
         <div className="w-full">
-            <EvaluationConfig onMultiConfigChanged={setEvaluationRequest} datasets={datasets} className="mb-6">
+            <EvaluationConfig onMultiConfigChanged={setEvaluationRequest} datasets={datasets} prompts={prompts} onPromptCreated={onPromptCreated} className="mb-6">
                 <div className="flex flex-row justify-between items-start flex-wrap mb-4 gap-4">
                     <div className="flex flex-row gap-4 flex-wrap">
                         <Button variant="secondary" disabled={!isFinished} onClick={handleDownloadMarkdownReport}>

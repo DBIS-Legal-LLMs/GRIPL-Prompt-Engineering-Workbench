@@ -10,15 +10,19 @@ import EvaluationConfigDefaultSettings from "@/components/evaluation/config/eval
 import EvaluationConfigDatasetSettings from "@/components/evaluation/config/evaluation-config-dataset-settings";
 import EvaluationConfigModelsSettings from "@/components/evaluation/config/evaluation-config-models-settings";
 import {nextLabel} from "@/lib/evaluation-config-utils";
+import { Prompt } from "@/models/dto/Prompt";
+import EvaluationConfigPromptSettings from "./evaluation-config-prompt-settings";
 
 interface EvaluationConfigCardMultiProps {
     className?: string;
     children?: JSX.Element;
     datasets: Dataset[];
+    prompts: Prompt[];
+    onPromptCreated: (createdPrompt: Prompt) => void;
     onMultiConfigChanged: (config: MultiEvaluationRequest) => void;
 }
 
-export default function EvaluationConfig({ className, children, datasets, onMultiConfigChanged }: EvaluationConfigCardMultiProps) {
+export default function EvaluationConfig({ className, children, datasets, prompts, onPromptCreated, onMultiConfigChanged }: EvaluationConfigCardMultiProps) {
     const config = useEvaluationConfig(datasets, onMultiConfigChanged);
 
     const { fileInputRef, onClickImportYaml, onFileChange, onClickExportYaml } = useYamlImportExport({
@@ -100,6 +104,12 @@ export default function EvaluationConfig({ className, children, datasets, onMult
                         onTestCasesChange={config.setSelectedTestCaseIds}
                     />
                 </div>
+
+                <EvaluationConfigPromptSettings
+                    prompts={prompts}
+                    onPromptConfigChanged={config.setPromptConfiguration}
+                    onPromptCreated={onPromptCreated}
+                />
 
                 <EvaluationConfigModelsSettings
                     models={config.models}

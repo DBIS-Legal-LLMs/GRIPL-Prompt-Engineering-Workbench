@@ -1,3 +1,4 @@
+import { ClassificationScope, Variable } from "@/models/dto/PromptVersion";
 
 export interface MultiEvaluationRequest {
     models: ModelRunConfig[];
@@ -11,6 +12,7 @@ export interface MultiEvaluationRequest {
     ragMode: string;
     evaluateRag: boolean;
     activitiesOnly: boolean;
+    promptConfiguration?: EvaluationPromptConfiguration;
 }
 
 export interface ModelRunConfig {
@@ -24,4 +26,11 @@ export interface LlmPropsOverride {
     modelName?: string | null;
     apiKey?: string | null;
     timeoutSeconds?: number | null;
+}
+
+export interface EvaluationPromptConfiguration {
+    sourcePromptVersionId?: number | null;
+    template?: string | null;
+    variables?: Variable[] | null;
+    classificationScope?: ClassificationScope | null;
 }

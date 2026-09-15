@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import fetchAnalysisEndpoints from "@/actions/analysis-endpoints";
 import { Dataset } from "@/models/dto/Dataset";
-import { ModelRunConfig, MultiEvaluationRequest } from "@/models/dto/MultiEvaluationRequest";
+import { EvaluationPromptConfiguration, ModelRunConfig, MultiEvaluationRequest } from "@/models/dto/MultiEvaluationRequest";
 import {EndpointChoice, ModelRowState} from "@/models/evaluation/Config";
 import {cryptoRandomId, normalize} from "@/lib/evaluation-config-utils";
 
@@ -47,6 +47,8 @@ export function useEvaluationConfig(
 
     // Evaluation scope: score activities only vs. all BPMN elements
     const [activitiesOnly, setActivitiesOnly] = useState<boolean>(false);
+
+    const [promptConfiguration, setPromptConfiguration] = useState<EvaluationPromptConfiguration | null>(null);
 
     useEffect(() => {
         fetchAnalysisEndpoints().then((eps) => {
@@ -98,10 +100,11 @@ export function useEvaluationConfig(
             ragMode,
             evaluateRag: useRag && evaluateRag,
             activitiesOnly,
+            promptConfiguration: promptConfiguration || undefined,
         };
 
         onMultiConfigChanged(multi);
-    }, [models, selectedDatasets, selectedTestCaseIds, effectiveDefaultEndpoint, seed, maxConcurrent, repetitions, useRag, ragMode, evaluateRag, activitiesOnly, onMultiConfigChanged]);
+    }, [models, selectedDatasets, selectedTestCaseIds, effectiveDefaultEndpoint, seed, maxConcurrent, repetitions, useRag, ragMode, evaluateRag, activitiesOnly, onMultiConfigChanged, promptConfiguration]);
 
     function addModel() {
         setModels((prev) => [...prev, newModelRow(prev.length + 1)]);
@@ -147,6 +150,7 @@ export function useEvaluationConfig(
         ragMode,
         evaluateRag,
         activitiesOnly,
+        promptConfiguration,
         setDefaultEndpointChoice,
         setDefaultPresetEndpoint,
         setDefaultCustomEndpoint,
@@ -160,6 +164,7 @@ export function useEvaluationConfig(
         setRagMode,
         setEvaluateRag,
         setActivitiesOnly,
+        setPromptConfiguration,
         addModel,
         removeModel,
         duplicateModel,
