@@ -65,6 +65,7 @@ class PromptManagementService(
         commitMessage: String
     ): PromptVersion {
         require(template.isNotBlank()) { "Template must not be blank" }
+        PromptTemplateRenderer.validate(template)
         require(commitMessage.isNotBlank()) { "Commit message must not be blank" }
 
         if (promptRepository.getPromptById(promptId) == null) {

@@ -5,6 +5,7 @@ import de.mertendieckmann.griplbackend.ai.SharedChatMemoryProvider
 import de.mertendieckmann.griplbackend.application.BpmnExtractor
 import de.mertendieckmann.griplbackend.application.SafetyNet
 import de.mertendieckmann.griplbackend.adapter.rag.RagApiClient
+import de.mertendieckmann.griplbackend.application.PromptTemplateRenderer
 import de.mertendieckmann.griplbackend.model.BpmnElement
 import de.mertendieckmann.griplbackend.model.dto.AnalysisResponse
 import de.mertendieckmann.griplbackend.model.dto.ClassificationScope
@@ -32,21 +33,17 @@ class PromptBpmnAnalyzer(
     private val safetyNet = SafetyNet(llm, memoryProvider)
     
     private val activitiesOnly = promptVersion.classificationScope == ClassificationScope.ACTIVITIES_ONLY
-    private val systemPrompt = promptVersion.template
-        .let { template ->
-            promptVersion.variables.fold(template) {renderedTemplate, variable ->
-                renderedTemplate.replace("{{${variable.name}}}", variable.value)
-            }
-        }
 
     override fun analyzeBpmnForGdpr(bpmnXml: String, useRag: Boolean, ragMode: RagMode): AnalysisResponse {
         val sessionId = UUID.randomUUID().toString()
 
         val bpmnElements = BpmnExtractor().extractBpmnElements(bpmnXml)
-
+        val systemPrompt = PromptTemplateRenderer.render(promptVersion.template, promptVersion.variables, useRag)
+        
+        val bpmnAnalysisAiService = PromptBpmnAnalysisAiServiceFactory.create(llm, memoryProvider, systemPrompt)
+        
         if (useRag) {
             // RAG-augmented path
-            val bpmnAnalysisAiService = PromptBpmnAnalysisAiServiceFactory.create(llm, memoryProvider, systemPrompt)
             val ragContextMap = fetchRagContext(bpmnElements, ragMode, activitiesOnly = activitiesOnly)
 
             val pool = buildDedupedPool(ragContextMap)
@@ -72,10 +69,6 @@ class PromptBpmnAnalyzer(
             )
         } else {
             // Original path — unchanged from evaluation baseline
-            val bpmnAnalysisAiService = PromptBpmnAnalysisAiServiceFactory.create(llm, memoryProvider, systemPrompt)
-            
-            log.debug { "System prompt: $systemPrompt" }
-            
             val result = safetyNet.safeGuardAnalysisResultParsing(sessionId, maxRetries = 3) {
                 bpmnAnalysisAiService.analyze(sessionId, bpmnElements)
             }

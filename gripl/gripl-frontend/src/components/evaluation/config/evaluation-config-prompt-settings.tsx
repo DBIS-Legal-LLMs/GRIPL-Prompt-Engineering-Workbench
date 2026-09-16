@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
+import { validatePromptTemplate } from "@/lib/prompt-template-validation";
 import { EvaluationPromptConfiguration } from "@/models/dto/MultiEvaluationRequest";
 import { Prompt } from "@/models/dto/Prompt";
 import { ClassificationScope, Variable, PromptVersion, classificationScopeLabels } from "@/models/dto/PromptVersion";
@@ -291,6 +292,12 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
 
         if (!template.trim()) {
             showToast({ title: "Please enter prompt text before committing.", variant: "info" });
+            return;
+        }
+
+        const validationError = validatePromptTemplate(template);
+        if (validationError) {
+            showToast({ title: "Prompt template validation failed", description: validationError, variant: "info", duration: 8000 });
             return;
         }
 

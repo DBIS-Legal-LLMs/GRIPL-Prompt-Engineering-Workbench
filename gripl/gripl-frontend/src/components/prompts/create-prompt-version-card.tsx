@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import createPromptVersion from "@/actions/create-prompt-version";
 import { Badge } from "@/components/ui/badge";
+import { validatePromptTemplate } from "@/lib/prompt-template-validation";
 
 interface CreatePromptVersionCardProps {
     idOfParentPrompt: number;
@@ -119,6 +120,12 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
 
         if (!template.trim()) {
             showToast({ title: "Please enter prompt text before committing.", variant: "info" });
+            return;
+        }
+
+        const validationError = validatePromptTemplate(template);
+        if (validationError) {
+            showToast({ title: "Prompt template validation failed",description: validationError, variant: "info", duration: 8000 });
             return;
         }
 
