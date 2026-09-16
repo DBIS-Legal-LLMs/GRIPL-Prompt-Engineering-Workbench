@@ -1,5 +1,6 @@
 package de.mertendieckmann.griplbackend.adapter.web.error
 
+import de.mertendieckmann.griplbackend.application.DefaultPromptVersionNotConfiguredException
 import de.mertendieckmann.griplbackend.application.PromptNotFoundException
 import de.mertendieckmann.griplbackend.application.PromptVersionConflictException
 import de.mertendieckmann.griplbackend.application.PromptVersionNotFoundException
@@ -111,6 +112,13 @@ class GlobalExceptionHandler {
         ResponseEntity
             .status(HttpStatus.CONFLICT)
             .body(ApiError(code = "PROMPT_VERSION_CONFLICT", message = ex.message))
+            .also { ex.printStackTrace() }
+            
+    @ExceptionHandler(DefaultPromptVersionNotConfiguredException::class)
+    fun handleDefaultPromptVersionNotConfiguredException(ex: DefaultPromptVersionNotConfiguredException): ResponseEntity<ApiError> =
+        ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiError(code = "DEFAULT_PROMPT_VERSION_NOT_CONFIGURED", message = ex.message))
             .also { ex.printStackTrace() }
 
     data class ApiError(val code: String, val message: String?)

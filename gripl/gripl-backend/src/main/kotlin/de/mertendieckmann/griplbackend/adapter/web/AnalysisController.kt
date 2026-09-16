@@ -1,6 +1,8 @@
 package de.mertendieckmann.griplbackend.adapter.web
 
 import de.mertendieckmann.griplbackend.adapter.web.utils.ControllerUtils
+import de.mertendieckmann.griplbackend.application.DefaultPromptVersionNotConfiguredException
+import de.mertendieckmann.griplbackend.application.PromptManagementService
 import de.mertendieckmann.griplbackend.application.analyzer.AnalyzerFactory
 import de.mertendieckmann.griplbackend.config.LlmConfig
 import de.mertendieckmann.griplbackend.model.dto.AnalysisEndpoint
@@ -22,6 +24,7 @@ import reactor.core.scheduler.Schedulers
 @RequestMapping("/gdpr/analysis")
 class AnalysisController(
     private val analyzerFactory: AnalyzerFactory,
+    private val promptManagementService: PromptManagementService,
     private val llmConfig: LlmConfig,
     @Qualifier("analysisEndpoints") private val analysisEndpoints: List<AnalysisEndpoint>,
     private val env: Environment
@@ -50,13 +53,11 @@ class AnalysisController(
         @RequestPart("bpmnFile") file: FilePart,
         @RequestPart("llmProps", required = false) llmPropsOverrides: LlmConfig.Companion.LlmPropsOverride? = null,
         @RequestPart("useRag", required = false) useRagPart: org.springframework.http.codec.multipart.FormFieldPart?,
-        @RequestPart("ragMode", required = false) ragModePart: org.springframework.http.codec.multipart.FormFieldPart?,
-        @RequestPart("activitiesOnly", required = false) activitiesOnlyPart: org.springframework.http.codec.multipart.FormFieldPart?
+        @RequestPart("ragMode", required = false) ragModePart: org.springframework.http.codec.multipart.FormFieldPart?
     ): Mono<ResponseEntity<AnalysisResponse>> {
 
         val useRag = useRagPart?.value()?.toBooleanStrictOrNull() ?: false
         val ragMode = parseRagMode(ragModePart)
-        val activitiesOnly = activitiesOnlyPart?.value()?.toBooleanStrictOrNull() ?: false
 
         val bpmnXmlMono: Mono<String> = ControllerUtils.getBpmnXmlMono(file)
         val resolvedLlmPropsOverride = ControllerUtils.resolveEnvironmentVariables(llmPropsOverrides, env)
@@ -64,12 +65,12 @@ class AnalysisController(
         return bpmnXmlMono.flatMap { bpmnXml ->
             Mono.fromCallable {
                 val llm = llmConfig.buildStrictJsonModelWithOverride(resolvedLlmPropsOverride)
-                val analyzer = analyzerFactory.createPromptEngineeringAnalyzer(llm)
+                val promptVersion = promptManagementService.getDefaultPromptVersion() ?: throw DefaultPromptVersionNotConfiguredException()
+                val analyzer = analyzerFactory.createPromptEngineeringAnalyzer(llm, promptVersion)
                 analyzer.analyzeBpmnForGdpr(
                     bpmnXml = bpmnXml,
                     useRag = useRag,
-                    ragMode = ragMode,
-                    activitiesOnly = activitiesOnly
+                    ragMode = ragMode
                 )            }.subscribeOn(Schedulers.boundedElastic())
         }.map { ResponseEntity.ok(it) }
     }
@@ -101,12 +102,11 @@ class AnalysisController(
         return bpmnXmlMono.flatMap { bpmnXml ->
             Mono.fromCallable {
                 val llm = llmConfig.buildStrictJsonModelWithOverride(resolvedLlmPropsOverride)
-                val analyzer = analyzerFactory.createBaselineAnalyzer(llm)
+                val analyzer = analyzerFactory.createBaselineAnalyzer(llm, activitiesOnly)
                 analyzer.analyzeBpmnForGdpr(
                     bpmnXml = bpmnXml,
                     useRag = useRag,
-                    ragMode = ragMode,
-                    activitiesOnly = activitiesOnly
+                    ragMode = ragMode
                 )            }.subscribeOn(Schedulers.boundedElastic())
         }.map { ResponseEntity.ok(it) }
     }

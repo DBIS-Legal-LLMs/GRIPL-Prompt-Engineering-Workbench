@@ -1,6 +1,7 @@
 package de.mertendieckmann.griplbackend.application.analyzer
 
 import de.mertendieckmann.griplbackend.adapter.rag.RagApiClient
+import de.mertendieckmann.griplbackend.model.dto.PromptVersion
 import dev.langchain4j.model.chat.ChatModel
 import org.springframework.stereotype.Component
 
@@ -8,11 +9,11 @@ import org.springframework.stereotype.Component
 class AnalyzerFactory(
     private val ragApiClient: RagApiClient
 ) {
-    fun createPromptEngineeringAnalyzer(chatModel: ChatModel): PromptBpmnAnalyzer {
-        return PromptBpmnAnalyzer(chatModel, ragApiClient)
+    fun createPromptEngineeringAnalyzer(chatModel: ChatModel, promptVersion: PromptVersion): PromptBpmnAnalyzer {
+        return PromptBpmnAnalyzer(chatModel, ragApiClient, promptVersion)
     }
 
-    fun createBaselineAnalyzer(chatModel: ChatModel): BaselineBpmnAnalyzer {
-        return BaselineBpmnAnalyzer(chatModel)
+    fun createBaselineAnalyzer(chatModel: ChatModel, activitiesOnly: Boolean): BaselineBpmnAnalyzer {
+        return BaselineBpmnAnalyzer(chatModel, activitiesOnly )
     }
 }

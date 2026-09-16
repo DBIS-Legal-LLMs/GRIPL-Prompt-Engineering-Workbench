@@ -1,5 +1,5 @@
 package de.mertendieckmann.griplbackend.application.analyzer
-
+import de.mertendieckmann.griplbackend.model.dto.PromptVersion
 import de.mertendieckmann.griplbackend.ai.PromptBpmnAnalysisAiServiceFactory
 import de.mertendieckmann.griplbackend.ai.SharedChatMemoryProvider
 import de.mertendieckmann.griplbackend.application.BpmnExtractor
@@ -7,6 +7,7 @@ import de.mertendieckmann.griplbackend.application.SafetyNet
 import de.mertendieckmann.griplbackend.adapter.rag.RagApiClient
 import de.mertendieckmann.griplbackend.model.BpmnElement
 import de.mertendieckmann.griplbackend.model.dto.AnalysisResponse
+import de.mertendieckmann.griplbackend.model.dto.ClassificationScope
 import de.mertendieckmann.griplbackend.model.dto.RagDocument
 import de.mertendieckmann.griplbackend.model.dto.RagElementContext
 import de.mertendieckmann.griplbackend.model.dto.RagEntity
@@ -22,21 +23,30 @@ import java.util.*
 
 class PromptBpmnAnalyzer(
     private val llm: ChatModel,
-    private val ragApiClient: RagApiClient
+    private val ragApiClient: RagApiClient,
+    private val promptVersion: PromptVersion
 ) : BpmnAnalyzer {
 
     private val log = KotlinLogging.logger { }
     private val memoryProvider = SharedChatMemoryProvider(50)
     private val safetyNet = SafetyNet(llm, memoryProvider)
+    
+    private val activitiesOnly = promptVersion.classificationScope == ClassificationScope.ACTIVITIES_ONLY
+    private val systemPrompt = promptVersion.template
+        .let { template ->
+            promptVersion.variables.fold(template) {renderedTemplate, variable ->
+                renderedTemplate.replace("{{${variable.name}}}", variable.value)
+            }
+        }
 
-    override fun analyzeBpmnForGdpr(bpmnXml: String, useRag: Boolean, ragMode: RagMode, activitiesOnly: Boolean): AnalysisResponse {
+    override fun analyzeBpmnForGdpr(bpmnXml: String, useRag: Boolean, ragMode: RagMode): AnalysisResponse {
         val sessionId = UUID.randomUUID().toString()
 
         val bpmnElements = BpmnExtractor().extractBpmnElements(bpmnXml)
 
         if (useRag) {
             // RAG-augmented path
-            val bpmnAnalysisAiServiceWithRag = PromptBpmnAnalysisAiServiceFactory.create(llm, memoryProvider, activitiesOnly)
+            val bpmnAnalysisAiService = PromptBpmnAnalysisAiServiceFactory.create(llm, memoryProvider, systemPrompt)
             val ragContextMap = fetchRagContext(bpmnElements, ragMode, activitiesOnly = activitiesOnly)
 
             val pool = buildDedupedPool(ragContextMap)
@@ -48,7 +58,7 @@ class PromptBpmnAnalyzer(
 
             val result = safetyNet.safeGuardAnalysisResultParsing(sessionId, maxRetries = 3) {
                 val formattedPrompt = renderCombinedPrompt(bpmnElements, pool)
-                bpmnAnalysisAiServiceWithRag.analyzeWithRagContext(sessionId, formattedPrompt)
+                bpmnAnalysisAiService.analyzeWithRagContext(sessionId, formattedPrompt)
             }
 
             val analysisResult = result.first.resolveActivities(bpmnElements)
@@ -62,9 +72,12 @@ class PromptBpmnAnalyzer(
             )
         } else {
             // Original path — unchanged from evaluation baseline
-            val bpmnAnalysisAiServiceNoRag = PromptBpmnAnalysisAiServiceFactory.createWithoutRag(llm, memoryProvider, activitiesOnly)
+            val bpmnAnalysisAiService = PromptBpmnAnalysisAiServiceFactory.create(llm, memoryProvider, systemPrompt)
+            
+            log.debug { "System prompt: $systemPrompt" }
+            
             val result = safetyNet.safeGuardAnalysisResultParsing(sessionId, maxRetries = 3) {
-                bpmnAnalysisAiServiceNoRag.analyze(sessionId, bpmnElements)
+                bpmnAnalysisAiService.analyze(sessionId, bpmnElements)
             }
 
             val analysisResult = result.first.resolveActivities(bpmnElements)

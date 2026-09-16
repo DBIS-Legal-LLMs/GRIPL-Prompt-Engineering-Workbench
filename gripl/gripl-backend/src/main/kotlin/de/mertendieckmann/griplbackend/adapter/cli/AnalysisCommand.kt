@@ -1,5 +1,7 @@
 package de.mertendieckmann.griplbackend.adapter.cli
 
+import de.mertendieckmann.griplbackend.application.DefaultPromptVersionNotConfiguredException
+import de.mertendieckmann.griplbackend.application.PromptManagementService
 import de.mertendieckmann.griplbackend.application.analyzer.AnalyzerFactory
 import de.mertendieckmann.griplbackend.config.LlmConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -19,6 +21,7 @@ import de.mertendieckmann.griplbackend.config.LlmConfig.Companion.LlmPropsOverri
 @Component
 class AnalysisCommand(
     private val analyzerFactory: AnalyzerFactory,
+    private val promptManagementService: PromptManagementService,
     private val LlmConfig: LlmConfig
 ): Runnable {
 
@@ -47,8 +50,10 @@ class AnalysisCommand(
             temperature = temperature,
             topP = topP
         ))
+        
+        val systemPrompt = promptManagementService.getDefaultPromptVersion() ?: throw DefaultPromptVersionNotConfiguredException()
 
-        val analyzer = analyzerFactory.createPromptEngineeringAnalyzer(llm)
+        val analyzer = analyzerFactory.createPromptEngineeringAnalyzer(llm, systemPrompt)
         val result = analyzer.analyzeBpmnForGdpr(bpmnXml)
         CliOutput.print(result, outputFormat)
     }
