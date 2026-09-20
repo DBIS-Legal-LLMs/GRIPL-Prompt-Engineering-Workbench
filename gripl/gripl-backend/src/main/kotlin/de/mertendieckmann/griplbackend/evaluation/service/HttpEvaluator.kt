@@ -33,17 +33,21 @@ class HttpEvaluator(
                 .header("Content-Disposition", "form-data; name=\"llmProps\"")
                 .contentType(MediaType.APPLICATION_JSON)
         }
+        evaluationRequest.promptConfiguration.promptVersionId?.let { promptVersionId ->
+            bodyBuilder.part("promptVersionId", promptVersionId.toString())
+                .contentType(MediaType.TEXT_PLAIN)
+        }
+        evaluationRequest.promptConfiguration.promptVersionOverride?.let { override ->
+            bodyBuilder.part("promptVersionOverride", jacksonObjectMapper().writeValueAsString(override))
+                .header("Content-Disposition", "form-data; name=\"promptVersionOverride\"")
+                .contentType(MediaType.APPLICATION_JSON)
+        }
         // Forward RAG parameters — the analysis endpoint defaults to false/hybrid when omitted,
         // but we send them explicitly so behaviour matches the evaluation request config.
         bodyBuilder.part("useRag", evaluationRequest.useRag.toString())
         bodyBuilder.part("ragMode", evaluationRequest.ragMode.toString())
-        bodyBuilder.part("activitiesOnly", evaluationRequest.activitiesOnly.toString())
 
-        val absoluteEndpoint = if (evaluationRequest.evaluationEndpoint.startsWith("http://") || evaluationRequest.evaluationEndpoint.startsWith("https://")) {
-            evaluationRequest.evaluationEndpoint
-        } else {
-            "http://localhost:$serverPort${evaluationRequest.evaluationEndpoint}"
-        }
+        val absoluteEndpoint = "http://localhost:$serverPort/gdpr/analysis"
 
         try {
             val analysisResponse: AnalysisResponse = webClient

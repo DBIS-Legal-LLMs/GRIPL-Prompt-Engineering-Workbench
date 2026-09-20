@@ -30,10 +30,8 @@ data class EvaluationMetadataReport(
     val datasets: List<DatasetInfo>,
     val timestamp: Timestamp = Timestamp(System.currentTimeMillis()),
     val totalTestCases: Int,
-    val defaultEvaluationEndpoint: String,
     val seed: Int? = null,
-    val totalRepetitions: Int = 1,
-    val activitiesOnly: Boolean = false
+    val totalRepetitions: Int = 1
 ): EvaluationReport() {
     override fun toMarkdown(): String {
         return """
@@ -43,11 +41,9 @@ data class EvaluationMetadataReport(
             |- **Top Ps:** ${modelTopPs.joinToString(", ") { it?.toString() ?: "default" }}
             |- **Datasets:** ${datasets.joinToString(", ")}
             |- **Total Test Cases:** $totalTestCases
-            |- **Evaluation Scope:** ${if (activitiesOnly) "Activities only" else "All BPMN elements"}
             |${if (totalRepetitions > 1) "- **Repetitions:** $totalRepetitions" else ""}
             |${if (seed != null) "- **Seed:** $seed" else ""}
             |- **Timestamp:** $timestamp
-            |- **Default Evaluation Endpoint:** $defaultEvaluationEndpoint
         """.trimMargin()
     }
 

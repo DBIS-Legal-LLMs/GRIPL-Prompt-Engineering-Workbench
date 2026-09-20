@@ -84,6 +84,20 @@ data class PromptVersion(
             )
         }
     }
+
+    /**
+     * Creates the effective analysis configuration for this prompt version, 
+     * containing only the data required by the analysis layer.
+     *
+     * The baseline prompt is recognized by its reserved parent prompt ID.
+     */
+    fun toAnalysisPrompt(): AnalysisPrompt =
+        AnalysisPrompt(
+            template = template,
+            variables = variables,
+            classificationScope = classificationScope,
+            isBaseline = promptId == 0L
+        )
 }
 
 /**

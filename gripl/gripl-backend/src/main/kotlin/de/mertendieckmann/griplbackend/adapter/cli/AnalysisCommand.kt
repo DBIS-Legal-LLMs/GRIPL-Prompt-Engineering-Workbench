@@ -2,7 +2,7 @@ package de.mertendieckmann.griplbackend.adapter.cli
 
 import de.mertendieckmann.griplbackend.application.DefaultPromptVersionNotConfiguredException
 import de.mertendieckmann.griplbackend.application.PromptManagementService
-import de.mertendieckmann.griplbackend.application.analyzer.AnalyzerFactory
+import de.mertendieckmann.griplbackend.application.analyzer.BpmnAnalyzerFactory
 import de.mertendieckmann.griplbackend.config.LlmConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Component
@@ -12,6 +12,7 @@ import picocli.CommandLine.Parameters
 import java.nio.file.Files
 import java.nio.file.Path
 import de.mertendieckmann.griplbackend.config.LlmConfig.Companion.LlmPropsOverride
+import de.mertendieckmann.griplbackend.model.dto.RagMode
 
 @Command(
     name = "analysis",
@@ -20,9 +21,9 @@ import de.mertendieckmann.griplbackend.config.LlmConfig.Companion.LlmPropsOverri
 )
 @Component
 class AnalysisCommand(
-    private val analyzerFactory: AnalyzerFactory,
+    private val analyzerFactory: BpmnAnalyzerFactory,
     private val promptManagementService: PromptManagementService,
-    private val LlmConfig: LlmConfig
+    private val llmConfig: LlmConfig
 ): Runnable {
 
     private val log = KotlinLogging.logger { }
@@ -42,7 +43,7 @@ class AnalysisCommand(
         log.info { "Running analysis on BPMN file: $bpmnFilePath with output format: $outputFormat" }
         val bpmnXml = Files.readString(bpmnFilePath)
 
-        val llm = LlmConfig.buildStrictJsonModelWithOverride(LlmPropsOverride(
+        val llm = llmConfig.buildStrictJsonModelWithOverride(LlmPropsOverride(
             baseUrl = baseUrl,
             modelName = modelName,
             apiKey = apiKey,
@@ -51,10 +52,10 @@ class AnalysisCommand(
             topP = topP
         ))
         
-        val systemPrompt = promptManagementService.getDefaultPromptVersion() ?: throw DefaultPromptVersionNotConfiguredException()
+        val defaultPrompt = promptManagementService.getDefaultPromptVersion() ?: throw DefaultPromptVersionNotConfiguredException()
 
-        val analyzer = analyzerFactory.createPromptEngineeringAnalyzer(llm, systemPrompt)
-        val result = analyzer.analyzeBpmnForGdpr(bpmnXml)
+        val analyzer = analyzerFactory.createBpmnAnalyzer(llm, defaultPrompt.toAnalysisPrompt())
+        val result = analyzer.analyzeBpmnForGdpr(bpmnXml, useRag = false, ragMode = RagMode.HYBRID)
         CliOutput.print(result, outputFormat)
     }
 }

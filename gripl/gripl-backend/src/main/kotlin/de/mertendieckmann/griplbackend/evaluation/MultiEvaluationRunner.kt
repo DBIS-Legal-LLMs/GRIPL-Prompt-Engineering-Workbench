@@ -24,6 +24,8 @@ class MultiEvaluationRunner(
     fun runAll(request: MultiEvaluationRequest): Flow<ModelReportEnvelope> = flow {
         require(request.models.isNotEmpty()) { "models must not be empty" }
 
+        require(request.promptConfigurations.isNotEmpty()) { "promptConfigurations must not be empty" }
+
         val baseSeed = request.seed ?: (System.currentTimeMillis() * (Math.random() * 10) % Int.MAX_VALUE).toInt()
         val repetitions = request.repetitions.coerceAtLeast(1)
         emit(ModelReportEnvelope("", createMetadata(request, baseSeed, repetitions), 1))
@@ -31,28 +33,31 @@ class MultiEvaluationRunner(
         for (runNumber in 1..repetitions) {
             log.info { "Starting evaluation run $runNumber/$repetitions" }
 
-            for ((index, model) in request.models.withIndex()) {
-                val effectiveEndpoint = model.evaluationEndpoint ?: request.defaultEvaluationEndpoint
-                log.info { "Run $runNumber - Starting model ${index + 1}/${request.models.size}: '${model.label}' @ $effectiveEndpoint" }
+            for ((modelIndex, model) in request.models.withIndex()) {
+                log.info { "Run $runNumber - Starting model ${modelIndex + 1}/${request.models.size}: '${model.label}'" }
 
-                val runSeed = deriveRunSeed(baseSeed, runNumber)
+                for ((promptIndex, promptConfiguration) in request.promptConfigurations.withIndex()) {
+                    log.info { "Run $runNumber - Starting prompt ${promptIndex + 1}/${request.promptConfigurations.size} for model '${model.label}'" }
 
-                val singleRequest = EvaluationRequest(
-                    evaluationEndpoint = effectiveEndpoint,
-                    llmProps = model.llmProps?.copy(seed = runSeed),
-                    maxConcurrent = request.maxConcurrent,
-                    datasets = request.datasets,
-                    evaluationDataIds = request.evaluationDataIds,
-                    useRag = request.useRag,
-                    ragMode = request.ragMode,
-                    evaluateRag = request.evaluateRag,
-                    activitiesOnly = request.activitiesOnly
-                )
+                    val runSeed = deriveRunSeed(baseSeed, runNumber)
 
-                singleRunner.run(singleRequest)
-                    .map { event -> ModelReportEnvelope(model.label, event, runNumber) }
-                    .collect { wrapped -> emit(wrapped) }
+                    val singleRequest = EvaluationRequest(
+                        llmProps = model.llmProps?.copy(seed = runSeed),
+                        maxConcurrent = request.maxConcurrent,
+                        datasets = request.datasets,
+                        evaluationDataIds = request.evaluationDataIds,
+                        useRag = request.useRag,
+                        ragMode = request.ragMode,
+                        evaluateRag = request.evaluateRag,
+                        promptConfiguration = promptConfiguration
+                    )
 
+                    singleRunner
+                        .run(singleRequest)
+                        .map { event -> ModelReportEnvelope(model.label, event, runNumber) }
+                        .collect { wrapped -> emit(wrapped) }
+                }
+                
                 log.info { "Run $runNumber - Finished model '${model.label}'" }
             }
         }
@@ -73,9 +78,7 @@ class MultiEvaluationRunner(
             datasets = datasets.map { EvaluationMetadataReport.DatasetInfo(it.id, it.name) },
             totalTestCases = totalTestCases,
             seed = seed,
-            defaultEvaluationEndpoint = request.defaultEvaluationEndpoint,
-            totalRepetitions = repetitions,
-            activitiesOnly = request.activitiesOnly
+            totalRepetitions = repetitions
         )
     }
 
