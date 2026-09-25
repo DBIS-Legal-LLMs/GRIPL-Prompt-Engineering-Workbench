@@ -3,17 +3,20 @@
 import dynamic from "next/dynamic"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import type ApexCharts from "apexcharts"
-import {EvaluationReportSummary} from "@/models/dto/ReportData";
+import type { ChartItem } from "@/models/evaluation/PromptChartData";
 import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
 import {useEffect, useState} from "react";
+import { createGroupedCategories } from "@/components/evaluation/charts/common/chart-grouping";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
-interface ResultsPerModelStackedProps {
-    reportSummaries: Array<{ label: string; summary: EvaluationReportSummary }>
+interface ChartProps {
+    reportSummaries: ChartItem[]
 }
 
-export function ResultsPerModelStacked({ reportSummaries }: ResultsPerModelStackedProps) {
+export function ResultsPerModelStacked({ reportSummaries }: ChartProps) {
+    const grouped = createGroupedCategories(reportSummaries);
+
     const [isClient, setIsClient] = useState(false)
     const chartId = "results-per-model-stacked-chart"
 
@@ -24,15 +27,15 @@ export function ResultsPerModelStacked({ reportSummaries }: ResultsPerModelStack
     const series = [
         {
             name: "Passed",
-            data: reportSummaries.map((r) => r.summary.passed),
+            data: reportSummaries.map((item) => item.summary.passed),
         },
         {
             name: "Failed",
-            data: reportSummaries.map((r) => r.summary.failed),
+            data: reportSummaries.map((item) => item.summary.failed),
         },
         {
             name: "Error",
-            data: reportSummaries.map((r) => r.summary.error),
+            data: reportSummaries.map((item) => item.summary.error),
         },
     ]
 
@@ -62,7 +65,10 @@ export function ResultsPerModelStacked({ reportSummaries }: ResultsPerModelStack
             enabled: true,
         },
         xaxis: {
-            categories: reportSummaries.map((r) => r.label),
+            categories: grouped.categories,
+            group: {
+                groups: grouped.groups,
+            },
             labels: {
                 rotate: -42,
                 rotateAlways: true,

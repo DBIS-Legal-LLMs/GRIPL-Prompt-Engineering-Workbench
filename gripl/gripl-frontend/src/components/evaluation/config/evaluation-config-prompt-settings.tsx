@@ -91,6 +91,24 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
         return variables.map(variable => ({ ...variable }));
     }
 
+    function hasPromptChangesForEvaluation(): boolean {
+        if (!selectedVersion || classificationScope === null) {
+            return false;
+        }
+
+        return template !== selectedVersion.template ||
+            classificationScope !== selectedVersion.classificationScope ||
+            variables.length !== selectedVersion.variables.length ||
+            variables.some((variable, index) => {
+                const originalVariable = selectedVersion.variables[index];
+                return (
+                    originalVariable === undefined ||
+                    variable.name !== originalVariable.name ||
+                    variable.value !== originalVariable.value
+                );
+            });
+    }
+
     useEffect(() => {
         if (!loadDefaultPrompt) return;
 
@@ -133,13 +151,43 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
             return;
         }
 
+        const promptLabel = instanceId.toUpperCase();
+
+        if (isNewPrompt) {
+            if (!classificationScope || !template.trim()) {
+                onPromptConfigChanged(null);
+                return;
+            }
+
+            onPromptConfigChanged({
+                promptLabel,
+                promptVersionId: null,
+                promptVersionOverride: {
+                    template,
+                    variables: cloneVariables(variables),
+                    classificationScope,
+                }
+            });
+            return;
+        }
+
+        if (!selectedVersion) {
+            onPromptConfigChanged(null);
+            return;
+        }
+
+        const hasChanges = hasPromptChangesForEvaluation();
+
         onPromptConfigChanged({
-            sourcePromptVersionId: selectedVersion?.id ?? null,
-            template,
-            variables: cloneVariables(variables),
-            classificationScope,
+            promptLabel,
+            promptVersionId: selectedVersion.id,
+            promptVersionOverride: hasChanges ? {
+                template,
+                variables: cloneVariables(variables),
+                classificationScope: classificationScope!
+            } : null
         });
-    }, [selectedPromptId, selectedVersion, template, variables, classificationScope, isNewPrompt, onPromptConfigChanged]);
+    }, [selectedPromptId, selectedVersion, template, variables, classificationScope, isNewPrompt, instanceId, prompts, onPromptConfigChanged]);
 
     function resizeTextarea() {
         const textarea = textareaRef.current;

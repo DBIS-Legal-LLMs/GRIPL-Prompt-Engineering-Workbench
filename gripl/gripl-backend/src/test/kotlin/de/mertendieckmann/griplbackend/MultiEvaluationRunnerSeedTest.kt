@@ -1,5 +1,6 @@
 package de.mertendieckmann.griplbackend
 
+import de.mertendieckmann.griplbackend.application.PromptManagementService
 import de.mertendieckmann.griplbackend.evaluation.EvaluationRunner
 import de.mertendieckmann.griplbackend.evaluation.MultiEvaluationRunner
 import de.mertendieckmann.griplbackend.repository.DatasetRepository
@@ -14,7 +15,8 @@ class MultiEvaluationRunnerSeedTest {
     private val runner = MultiEvaluationRunner(
         singleRunner = mock(EvaluationRunner::class.java),
         datasetRepository = mock(DatasetRepository::class.java),
-        evaluationDataRepository = mock(EvaluationDataRepository::class.java)
+        evaluationDataRepository = mock(EvaluationDataRepository::class.java),
+        promptManagementService = mock(PromptManagementService::class.java)
     )
 
     private val deriveRunSeedMethod: Method =

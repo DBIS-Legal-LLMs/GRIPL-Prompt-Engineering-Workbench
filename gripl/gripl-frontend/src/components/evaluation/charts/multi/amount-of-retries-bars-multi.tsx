@@ -4,16 +4,18 @@ import dynamic from "next/dynamic"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import type ApexCharts from "apexcharts"
 import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
-import {EvaluationReportSummary} from "@/models/dto/ReportData";
+import type { ChartItem } from "@/models/evaluation/PromptChartData";
 import {useEffect, useState} from "react";
+import { createGroupedCategories } from "@/components/evaluation/charts/common/chart-grouping";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
-interface AmountOfRetriesPerModelProps {
-    reportSummaries: Array<{ label: string; summary: EvaluationReportSummary }>
+interface ChartProps {
+    reportSummaries: ChartItem[]
 }
 
-export function AmountOfRetriesPerModel({ reportSummaries }: AmountOfRetriesPerModelProps) {
+export function AmountOfRetriesPerModel({ reportSummaries }: ChartProps) {
+    const grouped = createGroupedCategories(reportSummaries);
 
     const [isClient, setIsClient] = useState(false)
 
@@ -21,7 +23,7 @@ export function AmountOfRetriesPerModel({ reportSummaries }: AmountOfRetriesPerM
     const series = [
         {
             name: "Amount of Retries",
-            data: reportSummaries.map((r) => r.summary.amountOfRetries || 0),
+            data: reportSummaries.map((item) => item.summary.amountOfRetries || 0),
         },
     ]
 
@@ -46,7 +48,10 @@ export function AmountOfRetriesPerModel({ reportSummaries }: AmountOfRetriesPerM
             enabled: true,
         },
         xaxis: {
-            categories: reportSummaries.map((r) => r.label),
+            categories: grouped.categories,
+            group: {
+                groups: grouped.groups,
+            },
             labels: {
                 rotate: -42,
                 rotateAlways: true,

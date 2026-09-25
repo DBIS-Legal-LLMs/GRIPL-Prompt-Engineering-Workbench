@@ -20,7 +20,6 @@ interface EvaluationConfigDefaultSettingsProps {
     useRag: boolean;
     ragMode: string;
     evaluateRag: boolean;
-    activitiesOnly: boolean;
     setDefaultEndpointChoice: (endpoint: EndpointChoice) => void;
     setDefaultPresetEndpoint: (endpoint: string) => void;
     setDefaultCustomEndpoint: (endpoint: string) => void;
@@ -30,7 +29,6 @@ interface EvaluationConfigDefaultSettingsProps {
     setUseRag: (v: boolean) => void;
     setRagMode: (v: string) => void;
     setEvaluateRag: (v: boolean) => void;
-    setActivitiesOnly: (v: boolean) => void;
 }
 
 const RAG_MODES = [
@@ -52,7 +50,6 @@ export default function EvaluationConfigDefaultSettings(props: EvaluationConfigD
         useRag,
         ragMode,
         evaluateRag,
-        activitiesOnly,
         setDefaultEndpointChoice,
         setDefaultPresetEndpoint,
         setDefaultCustomEndpoint,
@@ -62,7 +59,6 @@ export default function EvaluationConfigDefaultSettings(props: EvaluationConfigD
         setUseRag,
         setRagMode,
         setEvaluateRag,
-        setActivitiesOnly,
     } = props;
 
     return (
@@ -136,24 +132,6 @@ export default function EvaluationConfigDefaultSettings(props: EvaluationConfigD
                            onChange={(e) => setSeed(parseInt(e.target.value))}
                            className="w-full"/>
                     <p className="text-sm text-muted-foreground">Warning: Not all models support a seed, but it will be used for models that support them.</p>
-                </div>
-
-                <Separator />
-
-                {/* ── Evaluation Scope ──────────────────────────────── */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <Label htmlFor="activities-only-toggle">Evaluate Activities Only</Label>
-                        <p className="text-xs text-muted-foreground">
-                            Score only activities; events, gateways and data
-                            objects/stores are not evaluated.
-                        </p>
-                    </div>
-                    <Switch
-                        id="activities-only-toggle"
-                        checked={activitiesOnly}
-                        onCheckedChange={setActivitiesOnly}
-                    />
                 </div>
 
                 <Separator />

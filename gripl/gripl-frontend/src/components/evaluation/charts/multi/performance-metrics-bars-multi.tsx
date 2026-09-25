@@ -4,6 +4,8 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import ApexCharts from "react-apexcharts"
 import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
 import {useEffect, useState} from "react";
+import { ChartItem } from "@/models/evaluation/PromptChartData";
+import { createGroupedCategories } from "@/components/evaluation/charts/common/chart-grouping";
 
 export interface EvaluationReportSummary {
     type: "summary"
@@ -24,10 +26,12 @@ export interface EvaluationReportSummary {
 }
 
 interface PerformanceMetricsSideBySideProps {
-    reportSummaries: Array<{ label: string; summary: EvaluationReportSummary }>
+    reportSummaries: ChartItem[]
 }
 
 export function PerformanceMetricsBarsMulti({ reportSummaries }: PerformanceMetricsSideBySideProps) {
+    const grouped = createGroupedCategories(reportSummaries);
+    
     const [isClient, setIsClient] = useState(false)
     const chartId = "performance-metrics-chart"
 
@@ -38,19 +42,19 @@ export function PerformanceMetricsBarsMulti({ reportSummaries }: PerformanceMetr
     const series = [
         {
             name: "Accuracy",
-            data: reportSummaries.map((report) => report.summary.accuracy * 100),
+            data: reportSummaries.map((item) => item.summary.accuracy * 100),
         },
         {
             name: "Precision",
-            data: reportSummaries.map((report) => report.summary.precision * 100),
+            data: reportSummaries.map((item) => item.summary.precision * 100),
         },
         {
             name: "Recall",
-            data: reportSummaries.map((report) => report.summary.recall * 100),
+            data: reportSummaries.map((item) => item.summary.recall * 100),
         },
         {
             name: "F1-Score",
-            data: reportSummaries.map((report) => report.summary.f1Score * 100),
+            data: reportSummaries.map((item) => item.summary.f1Score * 100),
         },
     ]
 
@@ -79,7 +83,10 @@ export function PerformanceMetricsBarsMulti({ reportSummaries }: PerformanceMetr
             colors: ["transparent"],
         },
         xaxis: {
-            categories: reportSummaries.map((report) => report.label),
+            categories: grouped.categories,
+            group: {
+                groups: grouped.groups,
+            },
             labels: {
                 rotate: -42,
                 rotateAlways: true,

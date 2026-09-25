@@ -45,9 +45,6 @@ export function useEvaluationConfig(
     const [ragMode, setRagMode] = useState<string>("hybrid");
     const [evaluateRag, setEvaluateRag] = useState<boolean>(true);
 
-    // Evaluation scope: score activities only vs. all BPMN elements
-    const [activitiesOnly, setActivitiesOnly] = useState<boolean>(false);
-
     const [promptConfigurations, setPromptConfigurations] = useState<Array<EvaluationPromptConfiguration | null>>([null, null]);
     const configuredPrompts = promptConfigurations.filter((prompt): prompt is EvaluationPromptConfiguration => prompt !== null);
 
@@ -68,16 +65,8 @@ export function useEvaluationConfig(
 
     useEffect(() => {
         const dtoModels: ModelRunConfig[] = models.map((model) => {
-            const evaluationEndpoint =
-                model.endpointChoice === "default"
-                    ? null
-                    : model.endpointChoice === "preset"
-                        ? model.selectedPresetEndpoint || null
-                        : model.customEndpoint?.trim() || null;
-
             return {
                 label: model.label.trim() || "Model",
-                evaluationEndpoint,
                 llmProps: {
                     baseUrl: normalize(model.baseUrl),
                     modelName: normalize(model.modelName),
@@ -93,19 +82,17 @@ export function useEvaluationConfig(
             models: dtoModels,
             datasets: selectedDatasets,
             evaluationDataIds: selectedTestCaseIds,
-            defaultEvaluationEndpoint: effectiveDefaultEndpoint,
             seed: seed || undefined,
             maxConcurrent: maxConcurrent,
             repetitions: repetitions,
             useRag,
             ragMode,
             evaluateRag: useRag && evaluateRag,
-            activitiesOnly,
-            promptConfigurations: configuredPrompts.length > 0 ? configuredPrompts : undefined,
+            promptConfigurations: configuredPrompts,
         };
 
         onMultiConfigChanged(multi);
-    }, [models, selectedDatasets, selectedTestCaseIds, effectiveDefaultEndpoint, seed, maxConcurrent, repetitions, useRag, ragMode, evaluateRag, activitiesOnly, onMultiConfigChanged, promptConfigurations]);
+    }, [models, selectedDatasets, selectedTestCaseIds, effectiveDefaultEndpoint, seed, maxConcurrent, repetitions, useRag, ragMode, evaluateRag, onMultiConfigChanged, promptConfigurations]);
 
     const setPromptConfiguration = useCallback((index: number, promptConfiguration: EvaluationPromptConfiguration | null) => {
         setPromptConfigurations((currentConfigurations) => {
@@ -165,7 +152,6 @@ export function useEvaluationConfig(
         useRag,
         ragMode,
         evaluateRag,
-        activitiesOnly,
         promptConfigurations,
         setDefaultEndpointChoice,
         setDefaultPresetEndpoint,
@@ -179,7 +165,6 @@ export function useEvaluationConfig(
         setUseRag,
         setRagMode,
         setEvaluateRag,
-        setActivitiesOnly,
         setPromptConfiguration,
         addModel,
         removeModel,

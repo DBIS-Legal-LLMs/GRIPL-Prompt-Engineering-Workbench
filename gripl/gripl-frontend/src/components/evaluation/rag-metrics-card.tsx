@@ -1,11 +1,37 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { RagSummaryMetrics, TestCaseRagMetrics } from "@/models/dto/ReportData";
+
+export type RagMetricsItem = {
+    label?: string;
+    faithfulness: number | null;
+    contextUtilization: number | null;
+    samplesText?: string;
+};
 
 interface RagMetricsCardProps {
     title?: string;
-    summary?: RagSummaryMetrics | null;
-    testCase?: TestCaseRagMetrics | null;
+    items: RagMetricsItem[];
+}
+
+const metricDefinitions = [
+    {
+        label: "Faithfulness",
+        color: "text-chart-metric-4",
+        getValue: (item: RagMetricsItem) => item.faithfulness,
+    },
+    {
+        label: "Context Utilization",
+        color: "text-chart-metric-3",
+        getValue: (item: RagMetricsItem) => item.contextUtilization,
+    },
+];
+
+function formatValue(value: number | null) {
+    return value === null ? "n/a" : value.toFixed(3);
+}
+
+function toProgressValue(value: number | null) {
+    return value === null ? 0 : Math.max(0, Math.min(1, value)) * 100;
 }
 
 /**
@@ -16,50 +42,74 @@ interface RagMetricsCardProps {
  * Accepts either a per-test-case object or an aggregate summary object.
  * Renders nothing if no RAG metrics are available.
  */
-export default function RagMetricsCard({ title = "RAG Metrics (Ragas)", summary, testCase }: RagMetricsCardProps) {
-    const faithfulness = summary?.faithfulnessMean ?? testCase?.faithfulness ?? null;
-    const contextUtilization = summary?.contextUtilizationMean ?? testCase?.contextUtilization ?? null;
+export default function RagMetricsCard({ title = "RAG Metrics (Ragas)", items }: RagMetricsCardProps) {
+    const itemsWithMetrics = items.filter(
+        (item) =>
+            item.faithfulness !== null ||
+            item.contextUtilization !== null
+    );
 
-    const hasAny = faithfulness !== null || contextUtilization !== null;
-    if (!hasAny) return null;
-
-    const fmt = (v: number | null) => (v === null ? "n/a" : v.toFixed(3));
-    const pct = (v: number | null) => (v === null ? 0 : Math.max(0, Math.min(1, v)) * 100);
-
-    const samples = summary
-        ? `${summary.totalSamples} sample(s) across ${summary.evaluatedTestCases} test case(s)` +
-          (summary.failedSamples > 0 ? ` — ${summary.failedSamples} failed` : "")
-        : testCase
-            ? `${testCase.sampleCount} sample(s)` + (testCase.failedCount > 0 ? ` — ${testCase.failedCount} failed` : "")
-            : "";
-
-    const cols = [faithfulness, contextUtilization].filter(v => v !== null).length;
+    if (itemsWithMetrics.length === 0) {
+        return null;
+    }
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
             </CardHeader>
+
             <CardContent>
-                <div className={`grid grid-cols-1 md:grid-cols-${cols} gap-6`}>
-                    {faithfulness !== null && (
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-chart-metric-4">{fmt(faithfulness)}</div>
-                            <div className="text-sm text-muted-foreground">Faithfulness</div>
-                            <Progress value={pct(faithfulness)} className="h-2 mt-2" />
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                    {itemsWithMetrics.map((item) => (
+                        <div
+                            key={item.label ?? "default"}
+                            className="space-y-4"
+                        >
+                            {item.label && (
+                                <h3 className="text-center text-sm font-semibold">
+                                    {item.label}
+                                </h3>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                {metricDefinitions.map((metric) => {
+                                    const value = metric.getValue(item);
+
+                                    if (value === null) {
+                                        return null;
+                                    }
+
+                                    return (
+                                        <div
+                                            key={`${metric.label}-${item.label ?? "default"}`}
+                                            className="text-center"
+                                        >
+                                            <div className={`text-3xl font-bold ${metric.color}`}>
+                                                {formatValue(value)}
+                                            </div>
+
+                                            <div className="text-sm text-muted-foreground">
+                                                {metric.label}
+                                            </div>
+
+                                            <Progress
+                                                value={toProgressValue(value)}
+                                                className="mt-2 h-2"
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {item.samplesText && (
+                                <div className="text-center text-xs text-muted-foreground">
+                                    {item.samplesText}
+                                </div>
+                            )}
                         </div>
-                    )}
-                    {contextUtilization !== null && (
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-chart-metric-3">{fmt(contextUtilization)}</div>
-                            <div className="text-sm text-muted-foreground">Context Utilization</div>
-                            <Progress value={pct(contextUtilization)} className="h-2 mt-2" />
-                        </div>
-                    )}
+                    ))}
                 </div>
-                {samples && (
-                    <div className="mt-4 text-xs text-muted-foreground text-center">{samples}</div>
-                )}
             </CardContent>
         </Card>
     );

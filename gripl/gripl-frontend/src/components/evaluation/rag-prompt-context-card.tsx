@@ -7,7 +7,8 @@ import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react"
 import { useState } from "react"
 
 interface RagPromptContextCardProps {
-    contexts: string[]
+    title?: string;
+    contexts: string[];
 }
 
 /**
@@ -16,7 +17,7 @@ interface RagPromptContextCardProps {
  * Knowledge" section). One-click copy of the whole list so it can be
  * pasted into the Ragas Swagger endpoint or compared offline.
  */
-export default function RagPromptContextCard({ contexts }: RagPromptContextCardProps) {
+export default function RagPromptContextCard({ title = "Contexts sent to Ragas", contexts }: RagPromptContextCardProps) {
     const [copied, setCopied] = useState(false)
     const [open, setOpen] = useState(false)
 
@@ -47,7 +48,7 @@ export default function RagPromptContextCard({ contexts }: RagPromptContextCardP
                     <CollapsibleTrigger className="flex items-center gap-2 text-left flex-1">
                         {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         <CardTitle className="text-base font-semibold">
-                            Contexts sent to Ragas ({contexts.length})
+                            {title} ({contexts.length})
                         </CardTitle>
                     </CollapsibleTrigger>
                     <Button

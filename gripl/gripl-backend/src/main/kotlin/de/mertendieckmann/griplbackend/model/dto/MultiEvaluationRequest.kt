@@ -31,6 +31,7 @@ data class ModelRunConfig(
  * new unsaved prompt version has no prompt version ID.
  */
 data class EvaluationPromptConfiguration(
+    val promptLabel: String? = null,
     val promptVersionId: Long? = null,
     val promptVersionOverride: PromptVersionOverride? = null
 )

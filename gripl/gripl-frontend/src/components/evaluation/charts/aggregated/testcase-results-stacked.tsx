@@ -4,17 +4,20 @@ import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type ApexCharts from "apexcharts"
-import {AggregatedEvaluationResults} from "@/models/evaluation/AggregatedEvaluationResult";
+import {AggregatedChartItem, AggregatedEvaluationResults} from "@/models/evaluation/AggregatedEvaluationResult";
 import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
+import { createGroupedCategories } from "../common/chart-grouping"
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
 interface TestcaseResultsStackedProps {
-    aggregatedEvaluationResults: AggregatedEvaluationResults,
+    items: AggregatedChartItem[];
     repetisions: number
 }
 
-export default function TestcaseResultsStacked({ aggregatedEvaluationResults, repetisions }: TestcaseResultsStackedProps) {
+export default function TestcaseResultsStacked({ items, repetisions }: TestcaseResultsStackedProps) {
+    const grouped = createGroupedCategories(items);
+
     const [isClient, setIsClient] = useState(false)
     const [customColors, setCustomColors] = useState({
         passed: "#22c55e",
@@ -28,10 +31,9 @@ export default function TestcaseResultsStacked({ aggregatedEvaluationResults, re
 
     const chartId = `testcase-results-stacked-chart`
 
-    const categories = Object.keys(aggregatedEvaluationResults)
-    const passedData = categories.map((name) => aggregatedEvaluationResults[name].avgPassed)
-    const failedData = categories.map((name) => aggregatedEvaluationResults[name].avgFailed)
-    const errorData = categories.map((name) => aggregatedEvaluationResults[name].avgErrors)
+    const passedData = items.map((item) => item.metrics.avgPassed)
+    const failedData = items.map((item) => item.metrics.avgFailed)
+    const errorData = items.map((item) => item.metrics.avgErrors)
 
     const series = [
         {
@@ -77,7 +79,10 @@ export default function TestcaseResultsStacked({ aggregatedEvaluationResults, re
             enabled: true,
         },
         xaxis: {
-            categories,
+            categories: grouped.categories,
+            group: {
+                groups: grouped.groups,
+            },
             labels: {
                 rotate: -42,
                 rotateAlways: true,

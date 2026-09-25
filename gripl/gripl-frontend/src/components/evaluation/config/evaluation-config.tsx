@@ -53,7 +53,6 @@ export default function EvaluationConfig({ className, children, datasets, prompt
         useRag: config.useRag,
         ragMode: config.ragMode,
         evaluateRag: config.evaluateRag,
-        activitiesOnly: config.activitiesOnly,
         setDefaultEndpointChoice: (v) => config.setDefaultEndpointChoice(v),
         setDefaultPresetEndpoint: config.setDefaultPresetEndpoint,
         setDefaultCustomEndpoint: config.setDefaultCustomEndpoint,
@@ -65,7 +64,6 @@ export default function EvaluationConfig({ className, children, datasets, prompt
         setUseRag: config.setUseRag,
         setRagMode: config.setRagMode,
         setEvaluateRag: config.setEvaluateRag,
-        setActivitiesOnly: config.setActivitiesOnly,
     });
 
     return (
@@ -100,7 +98,6 @@ export default function EvaluationConfig({ className, children, datasets, prompt
                         useRag={config.useRag}
                         ragMode={config.ragMode}
                         evaluateRag={config.evaluateRag}
-                        activitiesOnly={config.activitiesOnly}
                         setDefaultEndpointChoice={config.setDefaultEndpointChoice}
                         setDefaultPresetEndpoint={config.setDefaultPresetEndpoint}
                         setDefaultCustomEndpoint={config.setDefaultCustomEndpoint}
@@ -110,7 +107,6 @@ export default function EvaluationConfig({ className, children, datasets, prompt
                         setUseRag={config.setUseRag}
                         setRagMode={config.setRagMode}
                         setEvaluateRag={config.setEvaluateRag}
-                        setActivitiesOnly={config.setActivitiesOnly}
                     />
 
                     <EvaluationConfigDatasetSettings

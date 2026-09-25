@@ -118,7 +118,16 @@ export default function EvaluationReportSummaryCardSingle({ reportSummary }: Sum
             )}
 
             {reportSummary.ragMetrics && (
-                <RagMetricsCard summary={reportSummary.ragMetrics} />
+                <RagMetricsCard 
+                    items={[{
+                        faithfulness: reportSummary.ragMetrics?.faithfulnessMean ?? null,
+                        contextUtilization: reportSummary.ragMetrics?.contextUtilizationMean ?? null,
+                        samplesText: reportSummary.ragMetrics
+                            ? `${reportSummary.ragMetrics.totalSamples} sample(s) across ${reportSummary.ragMetrics.evaluatedTestCases} test case(s)` +
+                                (reportSummary.ragMetrics.failedSamples > 0 ? `- ${reportSummary.ragMetrics.failedSamples} failed` : "")
+                            : undefined,
+                    }]}
+                />
             )}
         </div>
     );

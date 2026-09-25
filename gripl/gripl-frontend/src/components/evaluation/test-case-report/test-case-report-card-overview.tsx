@@ -1,40 +1,59 @@
-import {Card} from "@/components/ui/card";
-import {CheckCircle2, ListChecks, Target} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { TestCaseReport } from "@/models/dto/ReportData";
+import { CheckCircle2, ListChecks, Target } from "lucide-react";
+
+type PromptTestCaseReport = {
+    promptLabel: string;
+    report: TestCaseReport;
+};
 
 interface TestCaseReportCardOverviewProps {
-    totalExpected: number;
-    totalActual: number;
-    correctCount: number;
+    reports: PromptTestCaseReport[];
 }
 
-export default function TestCaseReportCardOverview({ totalExpected, totalActual, correctCount }: TestCaseReportCardOverviewProps) {
+export default function TestCaseReportCardOverview({ reports }: TestCaseReportCardOverviewProps) {
+    const primaryReport = reports[0].report;
+    const totalExpected = primaryReport.expectedNamesWithIds.length;
 
-    return <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-                <Target className="h-4 w-4"/>
-                <h3 className="font-medium text-sm">Expected</h3>
-            </div>
-            <p className="text-2xl font-bold">{totalExpected}</p>
-            <p className="text-xs text-muted-foreground">BPMN Elements</p>
-        </Card>
+    return (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="p-4">
+                <div className="mb-2 flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    <h3 className="text-sm font-medium">Expected</h3>
+                </div>
+                <p className="text-2xl font-bold">{totalExpected}</p>
+                <p className="text-xs text-muted-foreground">BPMN Elements</p>
+            </Card>
 
-        <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-                <ListChecks className="h-4 w-4"/>
-                <h3 className="font-medium text-sm">Detected</h3>
+            <div className="flex gap-4">
+                {reports.map(({ promptLabel, report }) => (
+                    <Card key={`detected-${promptLabel}`} className="p-4 w-full">
+                        <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                            <ListChecks className="h-4 w-4" />
+                            Detected 
+                            <span className="text-xs font-normal text-muted-foreground">({promptLabel})</span>
+                        </div>
+                        <p className="text-2xl font-bold">{report.actualNamesWithIds.length}</p>
+                        <p className="text-xs text-muted-foreground">BPMN Elements</p>
+                    </Card>
+                ))}
             </div>
-            <p className="text-2xl font-bold">{totalActual}</p>
-            <p className="text-xs text-muted-foreground">BPMN Elements</p>
-        </Card>
 
-        <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-                <CheckCircle2 className="h-4 w-4"/>
-                <h3 className="font-medium text-sm">Correct</h3>
+            <div className="flex gap-4">
+                {reports.map(({ promptLabel, report }) => (
+                    <Card key={`correct-${promptLabel}`} className="p-4 w-full">
+                        <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Correct
+                            <span className="text-xs font-normal text-muted-foreground">({promptLabel})</span>
+                        </div>
+
+                        <p className="text-2xl font-bold">{report.correctActivityIds?.length ?? 0}</p>
+                        <p className="text-xs text-muted-foreground">Matches</p>
+                    </Card>
+                ))}
             </div>
-            <p className="text-2xl font-bold">{correctCount}</p>
-            <p className="text-xs text-muted-foreground">Matches</p>
-        </Card>
-    </div>
+        </div>
+    );
 }

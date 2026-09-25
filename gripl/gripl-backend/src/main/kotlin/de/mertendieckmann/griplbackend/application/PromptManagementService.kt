@@ -222,4 +222,8 @@ class PromptManagementService(
     fun getPromptVersionById(promptVersionId: Long): PromptVersion = 
         promptVersionRepository.getPromptVersionById(promptVersionId)
             ?: throw PromptVersionNotFoundException(promptVersionId)
+            
+    fun getPromptById(promptId: Long): Prompt =
+        promptRepository.getPromptById(promptId)
+            ?: throw PromptNotFoundException(promptId)
 }

@@ -3,6 +3,7 @@ export interface EvaluationMetadataReport {
     modelLabels: string[],
     modelTemperatures: (number | undefined)[];
     modelTopPs: (number | undefined)[];
+    prompts: PromptInfo[];
     datasets: { id: number; name: string }[];
     timestamp: string;
     totalTestCases: number;
@@ -11,6 +12,13 @@ export interface EvaluationMetadataReport {
     totalRepetitions?: number;
     activitiesOnly?: boolean;
     markdown: string;
+}
+
+export interface PromptInfo {
+    promptLabel: string | null;
+    promptName: string | null;
+    versionNumber: number | null;
+    isOverride: boolean;
 }
 
 export interface TestCaseRagMetrics {

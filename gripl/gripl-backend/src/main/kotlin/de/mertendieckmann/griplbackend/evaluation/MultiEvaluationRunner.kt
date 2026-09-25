@@ -1,9 +1,11 @@
 package de.mertendieckmann.griplbackend.evaluation
-
+import de.mertendieckmann.griplbackend.application.PromptManagementService
 import de.mertendieckmann.griplbackend.model.dto.EvaluationMetadataReport
+import de.mertendieckmann.griplbackend.model.dto.EvaluationPromptConfiguration
 import de.mertendieckmann.griplbackend.model.dto.EvaluationRequest
 import de.mertendieckmann.griplbackend.model.dto.ModelReportEnvelope
 import de.mertendieckmann.griplbackend.model.dto.MultiEvaluationRequest
+import de.mertendieckmann.griplbackend.model.dto.PromptInfo
 import de.mertendieckmann.griplbackend.repository.DatasetRepository
 import de.mertendieckmann.griplbackend.repository.EvaluationDataRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -17,7 +19,8 @@ import java.security.MessageDigest
 class MultiEvaluationRunner(
     private val singleRunner: EvaluationRunner,
     private val datasetRepository: DatasetRepository,
-    private val evaluationDataRepository: EvaluationDataRepository
+    private val evaluationDataRepository: EvaluationDataRepository,
+    private val promptManagementService: PromptManagementService
 ) {
     private val log = KotlinLogging.logger {}
 
@@ -37,8 +40,14 @@ class MultiEvaluationRunner(
                 log.info { "Run $runNumber - Starting model ${modelIndex + 1}/${request.models.size}: '${model.label}'" }
 
                 for ((promptIndex, promptConfiguration) in request.promptConfigurations.withIndex()) {
-                    log.info { "Run $runNumber - Starting prompt ${promptIndex + 1}/${request.promptConfigurations.size} for model '${model.label}'" }
+                    val promptInfo = getPromptInfo(promptConfiguration, promptIndex)
 
+                    log.info {
+                        "Run $runNumber - Starting prompt " +
+                                "${promptIndex + 1}/${request.promptConfigurations.size} " +
+                                "('${promptInfo.displayName()}') for model '${model.label}'"
+                    }
+                    
                     val runSeed = deriveRunSeed(baseSeed, runNumber)
 
                     val singleRequest = EvaluationRequest(
@@ -54,10 +63,16 @@ class MultiEvaluationRunner(
 
                     singleRunner
                         .run(singleRequest)
-                        .map { event -> ModelReportEnvelope(model.label, event, runNumber) }
+                        .map { event -> 
+                            ModelReportEnvelope(
+                                modelLabel = model.label, 
+                                report = event, 
+                                runNumber = runNumber,
+                                promptInfo = promptInfo
+                            )}
                         .collect { wrapped -> emit(wrapped) }
                 }
-                
+
                 log.info { "Run $runNumber - Finished model '${model.label}'" }
             }
         }
@@ -70,11 +85,16 @@ class MultiEvaluationRunner(
         } else {
             evaluationDataRepository.countEvaluationDataForDatasets(request.datasets.map { it.toLong() })
         }
+        
+        val prompts = request.promptConfigurations.mapIndexed { index, promptConfiguration ->
+            getPromptInfo(promptConfiguration, index)
+        }
 
         return EvaluationMetadataReport(
             modelLabels = request.models.map { it.label },
             modelTemperatures = request.models.map { it.llmProps?.temperature },
             modelTopPs = request.models.map { it.llmProps?.topP },
+            prompts = prompts,
             datasets = datasets.map { EvaluationMetadataReport.DatasetInfo(it.id, it.name) },
             totalTestCases = totalTestCases,
             seed = seed,
@@ -96,5 +116,29 @@ class MultiEvaluationRunner(
         val raw = ByteBuffer.wrap(hash, 0, 4).order(ByteOrder.BIG_ENDIAN).int
         val position = raw and 0x7fffffff
         return if (position == 0) 1 else position
+    }
+    
+    private fun getPromptInfo(promptConfiguration: EvaluationPromptConfiguration, promptIndex: Int): PromptInfo {
+        promptConfiguration.promptVersionOverride?.let {
+            return PromptInfo(
+                promptLabel = promptConfiguration.promptLabel ?: "Unsaved Prompt ${promptIndex + 1}",
+                promptName = promptConfiguration.promptLabel ?: "Unsaved Prompt ${promptIndex + 1}",
+                versionNumber = null,
+                isOverride = true
+            )
+        }
+        
+        val promptVersionId = promptConfiguration.promptVersionId
+            ?: throw IllegalArgumentException("A promptVersionId must be provided if no override is present")
+            
+        val promptVersion = promptManagementService.getPromptVersionById(promptVersionId)
+        val promptName = promptManagementService.getPromptById(promptVersion.promptId).name
+        
+        return PromptInfo(
+            promptLabel = promptConfiguration.promptLabel ?: promptName,
+            promptName = promptName,
+            versionNumber = promptVersion.versionNumber,
+            isOverride = false
+        )
     }
 }

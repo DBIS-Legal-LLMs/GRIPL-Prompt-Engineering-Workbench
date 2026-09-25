@@ -2,36 +2,39 @@
 
 import dynamic from "next/dynamic"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
-import {EvaluationReportSummary} from "@/models/dto/ReportData";
+import { ChartItem } from "@/models/evaluation/PromptChartData";
 import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
 import {useEffect, useState} from "react";
+import { createGroupedCategories } from "@/components/evaluation/charts/common/chart-grouping";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
-interface ConfusionMatrixPerModelProps {
-    reportSummaries: Array<{ label: string; summary: EvaluationReportSummary }>
+interface ChartProps {
+    reportSummaries: ChartItem[]
 }
 
-export function ConfusionMatrixBarsMulti({ reportSummaries }: ConfusionMatrixPerModelProps) {
+export function ConfusionMatrixBarsMulti({ reportSummaries }: ChartProps) {
+    const grouped = createGroupedCategories(reportSummaries);
+
     const [isClient, setIsClient] = useState(false)
     const chartId = "confusion-matrix-chart"
 
     const series = [
         {
             name: "True Positives",
-            data: reportSummaries.map((report) => report.summary.totalTruePositives),
+            data: reportSummaries.map((item) => item.summary.totalTruePositives),
         },
         {
             name: "False Positives",
-            data: reportSummaries.map((report) => report.summary.totalFalsePositives),
+            data: reportSummaries.map((item) => item.summary.totalFalsePositives),
         },
         {
             name: "False Negatives",
-            data: reportSummaries.map((report) => report.summary.totalFalseNegatives),
+            data: reportSummaries.map((item) => item.summary.totalFalseNegatives),
         },
         {
             name: "True Negatives",
-            data: reportSummaries.map((report) => report.summary.totalTrueNegatives),
+            data: reportSummaries.map((item) => item.summary.totalTrueNegatives),
         },
     ]
 
@@ -61,7 +64,10 @@ export function ConfusionMatrixBarsMulti({ reportSummaries }: ConfusionMatrixPer
             colors: ["transparent"],
         },
         xaxis: {
-            categories: reportSummaries.map((report) => report.label),
+            categories: grouped.categories,
+            group: {
+                groups: grouped.groups,
+            },
             labels: {
                 rotate: -42,
                 rotateAlways: true,

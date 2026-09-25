@@ -1,5 +1,6 @@
 package de.mertendieckmann.griplbackend.config
 
+import de.mertendieckmann.griplbackend.application.PromptManagementService
 import de.mertendieckmann.griplbackend.evaluation.EvaluationRunner
 import de.mertendieckmann.griplbackend.evaluation.MultiEvaluationRunner
 import de.mertendieckmann.griplbackend.repository.DatasetRepository
@@ -13,6 +14,7 @@ class EvaluationConfig {
     fun multiEvaluationRunner(
         singleRunner: EvaluationRunner,
         datasetRepository: DatasetRepository,
-        evaluationDataRepository: EvaluationDataRepository
-    ) = MultiEvaluationRunner(singleRunner, datasetRepository, evaluationDataRepository)
+        evaluationDataRepository: EvaluationDataRepository,
+        promptManagementService: PromptManagementService
+    ) = MultiEvaluationRunner(singleRunner, datasetRepository, evaluationDataRepository, promptManagementService)
 }

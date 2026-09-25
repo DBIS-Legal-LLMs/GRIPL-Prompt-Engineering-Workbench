@@ -4,20 +4,17 @@ export interface MultiEvaluationRequest {
     models: ModelRunConfig[];
     datasets: number[];
     evaluationDataIds?: number[];
-    defaultEvaluationEndpoint: string;
     seed?: number;
     maxConcurrent: number | null;
     repetitions?: number;
     useRag: boolean;
     ragMode: string;
     evaluateRag: boolean;
-    activitiesOnly: boolean;
-    promptConfigurations?: EvaluationPromptConfiguration[];
+    promptConfigurations: EvaluationPromptConfiguration[];
 }
 
 export interface ModelRunConfig {
     label: string;
-    evaluationEndpoint?: string | null;
     llmProps?: LlmPropsOverride | null;
 }
 
@@ -29,8 +26,13 @@ export interface LlmPropsOverride {
 }
 
 export interface EvaluationPromptConfiguration {
-    sourcePromptVersionId?: number | null;
-    template?: string | null;
-    variables?: Variable[] | null;
-    classificationScope?: ClassificationScope | null;
+    promptLabel: string;
+    promptVersionId?: number | null;
+    promptVersionOverride?: PromptVersionOverride | null;
+}
+
+export interface PromptVersionOverride {
+    template: string;
+    variables: Variable[];
+    classificationScope: ClassificationScope;
 }

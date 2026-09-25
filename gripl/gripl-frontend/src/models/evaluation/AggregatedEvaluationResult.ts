@@ -47,3 +47,14 @@ export interface AggregatedEvaluationResult {
 }
 
 export type AggregatedEvaluationResults = Record<string, AggregatedEvaluationResult>;
+
+export type AggregatedPromptEvaluationResults = Record<
+    string, 
+    Record<string, AggregatedEvaluationResult>
+>;
+
+export interface AggregatedChartItem {
+    modelLabel: string;
+    promptLabel: string;
+    metrics: AggregatedEvaluationResult;
+}

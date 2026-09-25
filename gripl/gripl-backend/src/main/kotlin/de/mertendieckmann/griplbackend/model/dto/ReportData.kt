@@ -27,6 +27,7 @@ data class EvaluationMetadataReport(
     val modelLabels: List<String>,
     val modelTemperatures: List<Double?>,
     val modelTopPs: List<Double?>,
+    val prompts: List<PromptInfo>,
     val datasets: List<DatasetInfo>,
     val timestamp: Timestamp = Timestamp(System.currentTimeMillis()),
     val totalTestCases: Int,
@@ -37,6 +38,7 @@ data class EvaluationMetadataReport(
         return """
             |## Evaluation Metadata
             |- **Models:** ${modelLabels.joinToString(", ")}
+            |- **Prompts:** ${prompts.joinToString(", ") { prompt -> prompt.displayName() }}
             |- **Temperatures:** ${modelTemperatures.joinToString(", ") { it?.toString() ?: "default" }}
             |- **Top Ps:** ${modelTopPs.joinToString(", ") { it?.toString() ?: "default" }}
             |- **Datasets:** ${datasets.joinToString(", ")}

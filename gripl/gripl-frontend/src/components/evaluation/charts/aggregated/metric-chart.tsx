@@ -1,13 +1,14 @@
 "use client"
 
-import {useEffect, useState} from "react"
+import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type ApexCharts from "apexcharts"
-import {AggregatedEvaluationResults} from "@/models/evaluation/AggregatedEvaluationResult";
-import {getModelColor, useColors} from "@/components/evaluation/charts/common/color-context";
+import { AggregatedChartItem } from "@/models/evaluation/AggregatedEvaluationResult";
+import { getModelColor, useColors } from "@/components/evaluation/charts/common/color-context";
 import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
 import ColorConfigDialog from "@/components/evaluation/charts/common/color-config-dialog";
+import { createGroupedCategories } from "../common/chart-grouping"
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
@@ -16,7 +17,7 @@ interface MetricChartProps {
     description: string
     metricKey: "avgPrecision" | "avgRecall" | "avgF1Score" | "avgAccuracy" | "avgAmountOfRetries" | "avgContextUtilization" | "avgFaithfulness"
     stdKey: "stdPrecision" | "stdRecall" | "stdF1Score" | "stdAccuracy" | "stdAmountOfRetries" | "stdContextUtilization" | "stdFaithfulness"
-    aggregatedEvaluationResults: AggregatedEvaluationResults
+    items: AggregatedChartItem[];
     xAxisMaxOffset?: number
 }
 
@@ -27,36 +28,39 @@ interface ModelData {
     color: string
 }
 
-export default function MetricChart({ title, description, metricKey, stdKey, aggregatedEvaluationResults, xAxisMaxOffset }: MetricChartProps) {
+export default function MetricChart({ title, description, metricKey, stdKey, items, xAxisMaxOffset }: MetricChartProps) {
     const [isClient, setIsClient] = useState(false)
-    const { colors } = useColors()
-    const [showColorDialog, setShowColorDialog] = useState(false)
 
     useEffect(() => {
         setIsClient(true)
     }, [])
 
-    const data: ModelData[] = Object.entries(aggregatedEvaluationResults).map(([name, metrics]) => ({
-        name,
-        mean: metrics[metricKey] || 0,
-        sd: metrics[stdKey] || 0,
-        color: getModelColor(name, colors),
-    }))
+    const modelLabels = [...new Set(items.map((item) => item.modelLabel))]
+    const promptLabels = [...new Set(items.map((item) => item.promptLabel))]
+        .sort((a, b) => a.localeCompare(b))
+
+    const dataByKey = new Map(
+        items.map((item) => [
+            `${item.modelLabel}::${item.promptLabel}`,
+            {
+                mean: item.metrics[metricKey] ?? 0,
+                sd: item.metrics[stdKey] ?? 0,
+            },
+        ])
+    )
 
     const chartId = `metric-chart-${metricKey}`
 
-    const maxValue = Math.max(...data.map((d) => d.mean + d.sd))
+    const maxValue = Math.max(0, ...items.map((item) => (item.metrics[metricKey] ?? 0) + (item.metrics[stdKey] ?? 0)))
     const xAxisMax = maxValue + (xAxisMaxOffset || 0.2)
 
-    const categories = data.map((d) => d.name)
-    const chartColors = data.map((d) => getModelColor(d.name, colors))
-
-    const series = [
-        {
-            name: title,
-            data: data.map((d) => d.mean),
-        },
-    ]
+    const series = promptLabels.map((promptLabel) => ({
+        name: promptLabel,
+        data: modelLabels.map((modelLabel) => {
+            const data = dataByKey.get(`${modelLabel}::${promptLabel}`)
+            return data?.mean ?? null
+        }),
+    }))
 
     const options: ApexCharts.ApexOptions = {
         chart: {
@@ -69,17 +73,21 @@ export default function MetricChart({ title, description, metricKey, stdKey, agg
         plotOptions: {
             bar: {
                 horizontal: true,
-                distributed: true,
+                distributed: false,
                 barHeight: "70%",
                 dataLabels: { position: "top" },
             },
         },
-        colors: chartColors,
+        colors: promptLabels.map((_, index) =>
+            index === 0 ? "#3b82f6" : "#7e22ce"
+        ),
         dataLabels: {
             enabled: true,
             formatter: (_val, opts) => {
-                const d = data[opts.dataPointIndex]
-                return `${d.mean.toFixed(3)} ± ${d.sd.toFixed(3)}`
+                const modelLabel = modelLabels[opts.dataPointIndex]
+                const promptLabel = promptLabels[opts.seriesIndex]
+                const data = dataByKey.get(`${modelLabel}::${promptLabel}`)
+                return data ? `${data.mean.toFixed(3)} ± ${data.sd.toFixed(3)}` : ""
             },
             offsetY: 0,
             offsetX: 40,
@@ -87,7 +95,7 @@ export default function MetricChart({ title, description, metricKey, stdKey, agg
             background: { enabled: false },
         },
         xaxis: {
-            categories,
+            categories: modelLabels,
             max: xAxisMax,
             min: 0,
             title: {
@@ -111,7 +119,12 @@ export default function MetricChart({ title, description, metricKey, stdKey, agg
             xaxis: { lines: { show: true } },
             yaxis: { lines: { show: false } },
         },
-        legend: { show: false },
+        legend: {
+            show: true,
+            position: "right",
+            horizontalAlign: "center",
+            offsetY: 70,
+        },
         tooltip: {
             enabled: true,
             y: {
@@ -148,14 +161,13 @@ export default function MetricChart({ title, description, metricKey, stdKey, agg
                             <CardTitle>{title}</CardTitle>
                             <CardDescription>{description}</CardDescription>
                         </div>
-                        <ChartMenu chartId={chartId} onColorConfig={() => setShowColorDialog(true)} />
+                        <ChartMenu chartId={chartId} />
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Chart options={options} series={series} type="bar" height={300} />
+                    <Chart options={options} series={series} type="bar" height={Math.max(300, modelLabels.length * 55 + 100)} />
                 </CardContent>
             </Card>
-            <ColorConfigDialog open={showColorDialog} onOpenChange={setShowColorDialog} modelLabels={Object.keys(aggregatedEvaluationResults)} />
         </>
     )
 }
