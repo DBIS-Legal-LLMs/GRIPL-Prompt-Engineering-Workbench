@@ -11,6 +11,7 @@ data class PromptInfo(
     val promptLabel: String?,
     val promptName: String?,
     val versionNumber: Int?,
+    val classificationScope: ClassificationScope?,
     val isOverride: Boolean
 ) {
     fun displayName(): String = when {

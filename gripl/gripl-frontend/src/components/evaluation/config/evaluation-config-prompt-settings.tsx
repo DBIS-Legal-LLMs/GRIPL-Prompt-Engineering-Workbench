@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from "react";
 
 interface EvaluationConfigPromptSettingsProps {
     prompts: Prompt[];
-    instanceId: "a" | "b";
+    instanceId: "Prompt A" | "Prompt B";
     title: string;
     loadDefaultPrompt?: boolean;
     selectNewPromptOnMount?: boolean;
@@ -47,6 +47,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
     const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
     const [isNewPrompt, setIsNewPrompt] = useState(selectNewPromptOnMount);
     const [newPromptName, setNewPromptName] = useState("");
+    const [promptLabel, setPromptLabel] = useState("");
     const [versions, setVersions] = useState<PromptVersion[]>([]);
     const [selectedVersion, setSelectedVersion] = useState<PromptVersion | null>(null);
     const [template, setTemplate] = useState("");
@@ -91,6 +92,18 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
         return variables.map(variable => ({ ...variable }));
     }
 
+    function getPromptName(promptId: number): string {
+        return prompts.find(prompt => prompt.id === promptId)?.name ?? "";
+    }
+
+    function getPromptLabel(promptId: number, version: PromptVersion | null): string {
+        const promptName = getPromptName(promptId);
+
+        return version
+            ? `${promptName} V${version.versionNumber}`
+            : promptName;
+    }
+
     function hasPromptChangesForEvaluation(): boolean {
         if (!selectedVersion || classificationScope === null) {
             return false;
@@ -130,6 +143,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                     version => version.id === defaultSelection.promptVersionId
                 );
                 if (defaultVersion) {
+                    setPromptLabel(getPromptLabel(defaultSelection.promptId, defaultVersion));
                     applyVersion(defaultVersion);
                 }
             } catch (error) {
@@ -151,7 +165,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
             return;
         }
 
-        const promptLabel = instanceId.toUpperCase();
+        const effectivePromptLabel = promptLabel.trim() || instanceId;
 
         if (isNewPrompt) {
             if (!classificationScope || !template.trim()) {
@@ -160,7 +174,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
             }
 
             onPromptConfigChanged({
-                promptLabel,
+                promptLabel: effectivePromptLabel,
                 promptVersionId: null,
                 promptVersionOverride: {
                     template,
@@ -179,7 +193,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
         const hasChanges = hasPromptChangesForEvaluation();
 
         onPromptConfigChanged({
-            promptLabel,
+            promptLabel: effectivePromptLabel,
             promptVersionId: selectedVersion.id,
             promptVersionOverride: hasChanges ? {
                 template,
@@ -187,7 +201,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                 classificationScope: classificationScope!
             } : null
         });
-    }, [selectedPromptId, selectedVersion, template, variables, classificationScope, isNewPrompt, instanceId, prompts, onPromptConfigChanged]);
+    }, [selectedPromptId, selectedVersion, template, variables, classificationScope, promptLabel, isNewPrompt, instanceId, prompts, onPromptConfigChanged]);
 
     function resizeTextarea() {
         const textarea = textareaRef.current;
@@ -215,11 +229,13 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
         setClassificationScope(null);
         setIsAddingVariable(false);
         setEditingVariableName(null);
+        setPromptLabel("");
 
         if (promptId === NEW_PROMPT_VALUE) {
             setSelectedPromptId(null);
             setIsNewPrompt(true);
             setNewPromptName("");
+            setPromptLabel("");
             setIsEditorOpen(true);
             return;
         }
@@ -228,6 +244,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
         setSelectedPromptId(parsedPromptId);
         setIsNewPrompt(false);
         setNewPromptName("");
+        setPromptLabel(getPromptName(parsedPromptId));
 
         setIsLoadingVersions(true);
         try {
@@ -241,6 +258,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
             const latestVersion = loadedVersions.reduce((latest, current) => current.versionNumber > latest.versionNumber ? current : latest, loadedVersions[0]);
 
             if (latestVersion) {
+                setPromptLabel(getPromptLabel(parsedPromptId, latestVersion));
                 applyVersion(latestVersion);
             }
         } catch (error) {
@@ -253,7 +271,8 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
 
     function handleVersionSelectionChanged(versionId: string) {
         const version = versions.find(version => version.id.toString() === versionId);
-        if (version) {
+        if (version && selectedPromptId !== null) {
+            setPromptLabel(getPromptLabel(selectedPromptId, version));
             applyVersion(version);
         }
     }
@@ -537,7 +556,17 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                                 </SelectContent>
                             </Select>
                         </div>
+                    </div>
 
+                    <div className="w-full max-w-md space-y-2">
+                        <Label htmlFor={`evaluation-${instanceId}-prompt-label`}>Prompt Label</Label>
+                        <Input
+                            id={`evaluation-${instanceId}-prompt-label`}
+                            value={promptLabel}
+                            onChange={(event) => setPromptLabel(event.target.value)}
+                            placeholder="Enter a label for this prompt"
+                            disabled={isCreating}
+                        />
                     </div>
 
                     <Collapsible open={isEditorOpen} onOpenChange={setIsEditorOpen}>

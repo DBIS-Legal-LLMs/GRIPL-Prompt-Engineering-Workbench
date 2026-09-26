@@ -31,6 +31,7 @@ import { useToast } from "@/components/ui/toast";
 import { toErrorMessage } from "@/lib/http-error";
 import { Prompt } from "@/models/dto/Prompt";
 import { ChartItem } from "@/models/evaluation/PromptChartData";
+import { classificationScopeLabels } from "@/models/dto/PromptVersion";
 
 type ModelReportEnvelope = {
     modelLabel: string;
@@ -711,6 +712,7 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
             <section className="px-6 container mx-auto">
                 <h2 className="text-2xl font-semibold mb-2">Complete Result Overview</h2>
                 {summariesByModel.length > 0 || metadata ? <>
+                    {/* Metadata */}
                     <Card className="mb-6">
                         <CardHeader>
                             <h3 className="text-xl font-semibold">Evaluation Metadata</h3>
@@ -757,11 +759,33 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
                                                             >
                                                                 <span className="font-medium">{prompt.promptLabel}</span>
                                                                 <span className="text-muted-foreground">•</span>
-                                                                <span>{prompt.versionNumber === null
-                                                                    ? "Unsaved Prompt"
-                                                                    : prompt.isOverride
-                                                                        ? `Version ${prompt.versionNumber} (Override)`
-                                                                        : `Version ${prompt.versionNumber}`}
+                                                                {prompt.versionNumber === null ? (
+                                                                    <span>Unsaved Prompt</span>
+                                                                ) : (
+                                                                    <>
+                                                                        {prompt.promptName &&
+                                                                            !prompt.promptLabel
+                                                                                .toLowerCase()
+                                                                                .includes(prompt.promptName.toLowerCase()) && (
+                                                                                <>
+                                                                                    <span>{prompt.promptName}</span>
+                                                                                    <span className="text-muted-foreground">•</span>
+                                                                                </>
+                                                                            )}
+
+                                                                        <span>
+                                                                            Version {prompt.versionNumber}
+                                                                            {prompt.isOverride && " (override)"}
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                                <span className="text-muted-foreground">•</span>
+                                                                <span>
+                                                                    Scope: {
+                                                                        prompt.classificationScope
+                                                                            ? classificationScopeLabels[prompt.classificationScope]
+                                                                            : "Unknown"
+                                                                    }
                                                                 </span>
                                                             </div>
                                                         ))}

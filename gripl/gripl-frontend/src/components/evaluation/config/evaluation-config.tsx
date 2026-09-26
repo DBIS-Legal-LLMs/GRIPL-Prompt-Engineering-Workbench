@@ -120,7 +120,7 @@ export default function EvaluationConfig({ className, children, datasets, prompt
 
                 <div className="flex flex-row gap-8">
                     <EvaluationConfigPromptSettings
-                        instanceId="a"
+                        instanceId="Prompt A"
                         title={isComparisonPromptOpen ? "Prompt A Settings" : "Prompt Settings"}
                         loadDefaultPrompt
                         prompts={prompts}
@@ -132,7 +132,7 @@ export default function EvaluationConfig({ className, children, datasets, prompt
 
                     {isComparisonPromptOpen && (
                         <EvaluationConfigPromptSettings
-                            instanceId="b"
+                            instanceId="Prompt B"
                             title="Prompt B Settings"
                             prompts={prompts}
                             selectNewPromptOnMount={true}

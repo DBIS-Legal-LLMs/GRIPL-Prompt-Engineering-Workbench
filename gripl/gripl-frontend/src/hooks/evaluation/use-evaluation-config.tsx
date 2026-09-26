@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import fetchAnalysisEndpoints from "@/actions/analysis-endpoints";
 import { Dataset } from "@/models/dto/Dataset";
 import { EvaluationPromptConfiguration, ModelRunConfig, MultiEvaluationRequest } from "@/models/dto/MultiEvaluationRequest";
-import {EndpointChoice, ModelRowState} from "@/models/evaluation/Config";
-import {cryptoRandomId, normalize} from "@/lib/evaluation-config-utils";
+import { EndpointChoice, ModelRowState } from "@/models/evaluation/Config";
+import { cryptoRandomId, normalize } from "@/lib/evaluation-config-utils";
 
 export function newModelRow(index: number): ModelRowState {
     return {
@@ -48,6 +48,29 @@ export function useEvaluationConfig(
     const [promptConfigurations, setPromptConfigurations] = useState<Array<EvaluationPromptConfiguration | null>>([null, null]);
     const configuredPrompts = promptConfigurations.filter((prompt): prompt is EvaluationPromptConfiguration => prompt !== null);
 
+    function createUniquePromptLabels(configurations: EvaluationPromptConfiguration[]): EvaluationPromptConfiguration[] {
+        if (configurations.length < 2) {
+            return configurations;
+        }
+
+        const labels = configurations.map((configuration) =>
+            configuration.promptLabel.trim()
+        );
+
+        const haveSameLabel =
+            labels[0] !== "" &&
+            labels[0].toLowerCase() === labels[1].toLowerCase();
+
+        if (!haveSameLabel) {
+            return configurations;
+        }
+
+        return configurations.map((configuration, index) => ({
+            ...configuration,
+            promptLabel: `${configuration.promptLabel.trim()} ${index === 0 ? "A" : "B"}`,
+        }));
+    }
+
     useEffect(() => {
         fetchAnalysisEndpoints().then((eps) => {
             setAvailableEvaluationEndpoints(eps);
@@ -88,7 +111,7 @@ export function useEvaluationConfig(
             useRag,
             ragMode,
             evaluateRag: useRag && evaluateRag,
-            promptConfigurations: configuredPrompts,
+            promptConfigurations: createUniquePromptLabels(configuredPrompts),
         };
 
         onMultiConfigChanged(multi);
@@ -101,7 +124,7 @@ export function useEvaluationConfig(
             }
 
             return currentConfigurations.map(
-                (currentConfiguration, currentIndex) => 
+                (currentConfiguration, currentIndex) =>
                     currentIndex === index
                         ? promptConfiguration
                         : currentConfiguration

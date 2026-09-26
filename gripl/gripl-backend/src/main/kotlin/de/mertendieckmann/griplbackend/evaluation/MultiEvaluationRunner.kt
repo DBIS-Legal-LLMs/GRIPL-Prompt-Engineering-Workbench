@@ -124,6 +124,7 @@ class MultiEvaluationRunner(
                 promptLabel = promptConfiguration.promptLabel ?: "Unsaved Prompt ${promptIndex + 1}",
                 promptName = promptConfiguration.promptLabel ?: "Unsaved Prompt ${promptIndex + 1}",
                 versionNumber = null,
+                classificationScope = promptConfiguration.promptVersionOverride.classificationScope,
                 isOverride = true
             )
         }
@@ -138,6 +139,7 @@ class MultiEvaluationRunner(
             promptLabel = promptConfiguration.promptLabel ?: promptName,
             promptName = promptName,
             versionNumber = promptVersion.versionNumber,
+            classificationScope = promptVersion.classificationScope,
             isOverride = false
         )
     }

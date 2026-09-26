@@ -1,3 +1,5 @@
+import { ClassificationScope } from "./PromptVersion";
+
 export interface EvaluationMetadataReport {
     type: "metadata";
     modelLabels: string[],
@@ -18,6 +20,7 @@ export interface PromptInfo {
     promptLabel: string | null;
     promptName: string | null;
     versionNumber: number | null;
+    classificationScope: ClassificationScope | null;
     isOverride: boolean;
 }
 
