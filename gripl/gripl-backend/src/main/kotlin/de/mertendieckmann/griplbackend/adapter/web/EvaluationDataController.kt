@@ -1,5 +1,7 @@
 package de.mertendieckmann.griplbackend.adapter.web
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import de.mertendieckmann.griplbackend.application.PreviewGenerator
 import de.mertendieckmann.griplbackend.model.dto.*
 import de.mertendieckmann.griplbackend.repository.EvaluationDataRepository
@@ -27,7 +29,7 @@ class EvaluationDataController(
     @Operation(
         summary = "Get all Testcases Metadata",
         description = "Returns a list of the metadata of all available processes inside the evaluation dataset. " +
-            "Optionally filtered to a single dataset via the datasetId query parameter."
+                "Optionally filtered to a single dataset via the datasetId query parameter."
     )
     @GetMapping("", produces = [MediaType.APPLICATION_JSON_VALUE])
     fun getAllBpmnDatasetMeta(@RequestParam(required = false) datasetId: Int? = null): List<EvaluationDataMeta> {
@@ -114,17 +116,21 @@ class EvaluationDataController(
             }
 
         return bpmnXmlMomo.flatMap { bpmnXml ->
-            val affectedRows = evaluationDataRepository.updateEvaluationData(EvaluationData(
-                id = existingEntry.id,
-                name = name,
-                bpmnXml = bpmnXml,
-                expectedValues = expectedValues
-            ))
+            val affectedRows = evaluationDataRepository.updateEvaluationData(
+                EvaluationData(
+                    id = existingEntry.id,
+                    name = name,
+                    bpmnXml = bpmnXml,
+                    expectedValues = expectedValues
+                )
+            )
 
             if (affectedRows > 0) {
                 Mono.just(ResponseEntity.ok("Dataset entry updated successfully"))
             } else {
-                Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update dataset entry"))
+                Mono.just(
+                    ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update dataset entry")
+                )
             }
         }
     }
@@ -159,9 +165,19 @@ class EvaluationDataController(
         @RequestParam correctIds: List<String> = emptyList(),
         @RequestParam falsePositiveIds: List<String> = emptyList(),
         @RequestParam falseNegativeIds: List<String> = emptyList(),
+        @RequestParam classification: String? = null,
         @RequestParam theme: String = "light",
         request: ServerHttpRequest
     ): ResponseEntity<String> {
+        val classificationMap: Map<String, List<String>>? = try {
+            classification?.let {
+                jacksonObjectMapper().readValue<Map<String, List<String>>>(it)
+            }
+        } catch (ex: Exception) {
+            log.error(ex) { "Ungültige Preview-Klassifikation für Id: $id" }
+            return ResponseEntity.badRequest()
+                .body("Ungültige classification-Daten: ${ex.message}")
+        }
 
         val requestPath = request.uri.path
         val requestQueryWithoutSalt = request.uri.query
@@ -184,7 +200,14 @@ class EvaluationDataController(
         val bpmnXml = datasetEntry.bpmnXml
 
         val svg = try {
-            previewGenerator.convertXmlToSvg(bpmnXml, correctIds = correctIds, falsePositiveIds = falsePositiveIds, falseNegativeIds = falseNegativeIds, theme = theme)
+            previewGenerator.convertXmlToSvg(
+                bpmnXml,
+                correctIds = correctIds,
+                falsePositiveIds = falsePositiveIds,
+                falseNegativeIds = falseNegativeIds,
+                classifications = classificationMap,
+                theme = theme
+            )
         } catch (ex: IllegalArgumentException) {
             log.error(ex) { "Ungültiges BPMN XML für Id: $id" }
             return ResponseEntity.badRequest().body("Fehler beim Parsen: ${ex.message}")
@@ -193,11 +216,13 @@ class EvaluationDataController(
             return ResponseEntity.status(500).body("Serverfehler: ${ex.message}")
         }
 
-        previewCacheRepository.insertPreviewCache(PreviewCacheInsert(
-            evaluationDataId = id,
-            urlCacheKey = relativeRequestUrl,
-            svg = svg
-        ))
+        previewCacheRepository.insertPreviewCache(
+            PreviewCacheInsert(
+                evaluationDataId = id,
+                urlCacheKey = relativeRequestUrl,
+                svg = svg
+            )
+        )
 
         return ResponseEntity.ok()
             .header("Content-Type", "image/svg+xml")

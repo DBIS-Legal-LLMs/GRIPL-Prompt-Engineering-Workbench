@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react"
@@ -42,38 +43,41 @@ export default function RagPromptContextCard({ title = "Contexts sent to Ragas",
     }
 
     return (
-        <Card>
-            <Collapsible open={open} onOpenChange={setOpen}>
-                <CardHeader className="flex flex-row items-center justify-between gap-2 py-3">
-                    <CollapsibleTrigger className="flex items-center gap-2 text-left flex-1">
-                        {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                        <CardTitle className="text-base font-semibold">
-                            {title} ({contexts.length})
-                        </CardTitle>
-                    </CollapsibleTrigger>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleCopy() }}
-                        className="gap-2"
-                    >
-                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        {copied ? "Copied" : "Copy JSON"}
-                    </Button>
-                </CardHeader>
-                <CollapsibleContent>
-                    <CardContent className="pt-0">
-                        <ol className="space-y-1 text-xs font-mono list-decimal list-inside text-muted-foreground">
-                            {contexts.map((c, i) => (
-                                <li key={i} className="break-words whitespace-pre-wrap">
-                                    <span className="text-foreground">{c}</span>
-                                </li>
-                            ))}
-                        </ol>
-                    </CardContent>
-                </CollapsibleContent>
-            </Collapsible>
-        </Card>
+        <>
+            <Separator />
+            <Card>
+                <Collapsible open={open} onOpenChange={setOpen}>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 py-3">
+                        <CollapsibleTrigger className="flex items-center gap-2 text-left flex-1">
+                            {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            <CardTitle className="text-base font-semibold">
+                                {title} ({contexts.length})
+                            </CardTitle>
+                        </CollapsibleTrigger>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleCopy() }}
+                            className="gap-2"
+                        >
+                            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                            {copied ? "Copied" : "Copy JSON"}
+                        </Button>
+                    </CardHeader>
+                    <CollapsibleContent>
+                        <CardContent className="pt-0">
+                            <ol className="space-y-1 text-xs font-mono list-decimal list-inside text-muted-foreground">
+                                {contexts.map((c, i) => (
+                                    <li key={i} className="break-words whitespace-pre-wrap">
+                                        <span className="text-foreground">{c}</span>
+                                    </li>
+                                ))}
+                            </ol>
+                        </CardContent>
+                    </CollapsibleContent>
+                </Collapsible>
+            </Card>
+        </>
     )
 }

@@ -1,5 +1,6 @@
 package de.mertendieckmann.griplbackend.application
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.microsoft.playwright.Playwright
 
 class PreviewGenerator {
@@ -12,25 +13,41 @@ class PreviewGenerator {
             ?: error("PreviewGeneratorTemplate.html nicht gefunden")
     }
 
-    fun convertXmlToSvg(bpmnXml: String, correctIds: List<String>, falsePositiveIds: List<String>, falseNegativeIds: List<String>, theme: String = "light"): String {
+    fun convertXmlToSvg(
+        bpmnXml: String,
+        correctIds: List<String>,
+        falsePositiveIds: List<String>,
+        falseNegativeIds: List<String>,
+        classifications: Map<String, List<String>>? = null,
+        theme: String = "light"
+    ): String {
         Playwright.create().use { pw ->
             val browser = pw.chromium().launch(
                 com.microsoft.playwright.BrowserType.LaunchOptions()
                     .setHeadless(true)
-                    .setArgs(listOf(
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox"
-                    ))
+                    .setArgs(
+                        listOf(
+                            "--no-sandbox",
+                            "--disable-setuid-sandbox"
+                        )
+                    )
             )
             browser.newPage().use { page ->
                 page.setContent(htmlTemplate)
                 page.waitForFunction("() => typeof window.convertBpmn === 'function'")
 
-                val correctIdsString = correctIds.joinToString(",", "[", "]") { "\"$it\"" }
-                val falsePositiveIdsString = falsePositiveIds.joinToString(",", "[", "]") { "\"$it\"" }
-                val falseNegativeIdsString = falseNegativeIds.joinToString(",", "[", "]") { "\"$it\"" }
+                val objectMapper = jacksonObjectMapper()
 
-                val result = page.evaluate("""xml => window.convertBpmn(xml, $correctIdsString, $falsePositiveIdsString, $falseNegativeIdsString, "$theme")""", bpmnXml)
+                val correctIdsJson = objectMapper.writeValueAsString(correctIds)
+                val falsePositiveIdsJson = objectMapper.writeValueAsString(falsePositiveIds)
+                val falseNegativeIdsJson = objectMapper.writeValueAsString(falseNegativeIds)
+                val classificationsJson = objectMapper.writeValueAsString(classifications)
+                val themeJson = objectMapper.writeValueAsString(theme)
+
+                val result = page.evaluate(
+                    """xml => window.convertBpmn(xml, $correctIdsJson, $falsePositiveIdsJson, $falseNegativeIdsJson, $classificationsJson, $themeJson)""",
+                    bpmnXml
+                )
 
                 val success = (result as Map<*, *>)["success"] as Boolean
                 if (!success) {

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 export type RagMetricsItem = {
     label?: string;
@@ -54,63 +55,66 @@ export default function RagMetricsCard({ title = "RAG Metrics (Ragas)", items }:
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{title}</CardTitle>
-            </CardHeader>
+        <>
+            <Separator />
+            <Card>
+                <CardHeader>
+                    <CardTitle>{title}</CardTitle>
+                </CardHeader>
 
-            <CardContent>
-                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                    {itemsWithMetrics.map((item) => (
-                        <div
-                            key={item.label ?? "default"}
-                            className="space-y-4"
-                        >
-                            {item.label && (
-                                <h3 className="text-center text-sm font-semibold">
-                                    {item.label}
-                                </h3>
-                            )}
+                <CardContent>
+                    <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                        {itemsWithMetrics.map((item) => (
+                            <div
+                                key={item.label ?? "default"}
+                                className="space-y-4"
+                            >
+                                {item.label && (
+                                    <h3 className="text-center text-sm font-semibold">
+                                        {item.label}
+                                    </h3>
+                                )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                {metricDefinitions.map((metric) => {
-                                    const value = metric.getValue(item);
+                                <div className="grid grid-cols-2 gap-4">
+                                    {metricDefinitions.map((metric) => {
+                                        const value = metric.getValue(item);
 
-                                    if (value === null) {
-                                        return null;
-                                    }
+                                        if (value === null) {
+                                            return null;
+                                        }
 
-                                    return (
-                                        <div
-                                            key={`${metric.label}-${item.label ?? "default"}`}
-                                            className="text-center"
-                                        >
-                                            <div className={`text-3xl font-bold ${metric.color}`}>
-                                                {formatValue(value)}
+                                        return (
+                                            <div
+                                                key={`${metric.label}-${item.label ?? "default"}`}
+                                                className="text-center"
+                                            >
+                                                <div className={`text-3xl font-bold ${metric.color}`}>
+                                                    {formatValue(value)}
+                                                </div>
+
+                                                <div className="text-sm text-muted-foreground">
+                                                    {metric.label}
+                                                </div>
+
+                                                <Progress
+                                                    value={toProgressValue(value)}
+                                                    className="mt-2 h-2"
+                                                />
                                             </div>
-
-                                            <div className="text-sm text-muted-foreground">
-                                                {metric.label}
-                                            </div>
-
-                                            <Progress
-                                                value={toProgressValue(value)}
-                                                className="mt-2 h-2"
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {item.samplesText && (
-                                <div className="text-center text-xs text-muted-foreground">
-                                    {item.samplesText}
+                                        );
+                                    })}
                                 </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
+
+                                {item.samplesText && (
+                                    <div className="text-center text-xs text-muted-foreground">
+                                        {item.samplesText}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+        </>
     );
 }

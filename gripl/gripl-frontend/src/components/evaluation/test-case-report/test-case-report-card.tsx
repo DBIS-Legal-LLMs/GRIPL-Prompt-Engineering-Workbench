@@ -96,8 +96,7 @@ export default function TestCaseReportCard({ reports }: TestCaseReportCardProps)
                         <TestCaseReportCardOverview reports={reports} />
                         <Separator />
                         <TestCaseReportCardComparison reports={reports} />
-                        <TestCaseReportCardPreview report={reports[0].report} />
-                        <Separator />
+                        <TestCaseReportCardPreview reports={reports} />
                         <RagMetricsCard
                             items={reports.map(({ promptLabel, report }) => ({
                                 label: promptLabel,
@@ -109,7 +108,6 @@ export default function TestCaseReportCard({ reports }: TestCaseReportCardProps)
                                     : undefined,
                             }))}
                         />
-                        <Separator />
                         {reports
                             .filter(({ report }) => (report.ragPromptContext?.length ?? 0) > 0)
                             .map(({ promptLabel, report }) => (

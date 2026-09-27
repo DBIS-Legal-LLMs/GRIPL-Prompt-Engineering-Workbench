@@ -922,16 +922,63 @@
 <body>
 <div id="canvas"></div>
 <script>
-    function highlightActivities(viewer, correctIds, falsePositiveIds, falseNegativeIds) {
+    function highlightActivities(viewer, correctIds, falsePositiveIds, falseNegativeIds, classifications) {
         try {
             const canvas = viewer.get("canvas")
             const elementRegistry = viewer.get("elementRegistry")
 
+            const markerNames = [
+                "highlight-correct",
+                "highlight-false-positive",
+                "highlight-false-negative",
+                "preview-both-true-positive",
+                "preview-both-false-positive",
+                "preview-both-false-negative",
+                "preview-only-a-true-positive",
+                "preview-only-a-false-positive",
+                "preview-only-b-true-positive",
+                "preview-only-b-false-positive"
+            ]
+
             elementRegistry.getAll().forEach((element) => {
-                if (element.id) {
-                    canvas.removeMarker(element.id, "highlight-privacy")
+                if (!element.id) {
+                    return
                 }
+
+                markerNames.forEach((markerName) => {
+                    canvas.removeMarker(element.id, markerName)
+                })
             })
+
+            const hasABClassifications = classifications && Object.keys(classifications).length > 0
+
+            if (hasABClassifications) {
+                const classificationMarkers = {
+                    bothTruePositive: "preview-both-true-positive",
+                    bothFalsePositive: "preview-both-false-positive",
+                    bothFalseNegative: "preview-both-false-negative",
+                    onlyATruePositive: "preview-only-a-true-positive",
+                    onlyAFalsePositive: "preview-only-a-false-positive",
+                    onlyBTruePositive: "preview-only-b-true-positive",
+                    onlyBFalsePositive: "preview-only-b-false-positive"
+                }
+
+                Object.entries(classificationMarkers).forEach(
+                    ([classification, markerName]) => {
+                        const ids = classifications[classification] || []
+
+                        ids.forEach((id) => {
+                            const element = elementRegistry.get(id)
+
+                            if (element) {
+                                canvas.addMarker(id, markerName)
+                            }
+                        })
+                    }
+                )
+
+                return
+            }
 
             correctIds.forEach((id) => {
                 const element = elementRegistry.get(id)
@@ -954,11 +1001,72 @@
                 }
             })
         } catch (err) {
-            console.error("Fehler beim Hervorheben der Aktivitäten", err)
+            console.error("Fehler beim Hervorheben der BPMN-Elemente", err)
         }
     }
 
-    window.convertBpmn = async function(xml, correctIds, falsePositiveIds, falseNegativeIds, theme) {
+    function addPreviewPatterns(svg) {
+        const patterns = `
+            <pattern
+                id="preview-hatch-red"
+                patternUnits="userSpaceOnUse"
+                width="8"
+                height="8"
+                patternTransform="rotate(45)">
+                <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="8"
+                    stroke="#991b1b"
+                    stroke-opacity="1"
+                    stroke-width="3" />
+            </pattern>
+
+            <pattern
+                id="preview-hatch-purple"
+                patternUnits="userSpaceOnUse"
+                width="8"
+                height="8"
+                patternTransform="rotate(45)">
+                <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="8"
+                    stroke="#7e22ce"
+                    stroke-opacity="1"
+                    stroke-width="3" />
+            </pattern>
+
+            <pattern
+                id="preview-hatch-blue"
+                patternUnits="userSpaceOnUse"
+                width="8"
+                height="8"
+                patternTransform="rotate(45)">
+                <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="8"
+                    stroke="#1d4ed8"
+                    stroke-opacity="1"
+                    stroke-width="3" />
+            </pattern>
+        `
+
+        if (svg.includes("</defs>")) {
+            return svg.replace("</defs>", `${patterns}</defs>`)
+        }
+
+        return svg.replace(
+            "</svg>",
+            `<defs>${patterns}</defs></svg>`
+        )
+    }
+
+    window.convertBpmn = async function(xml, correctIds, falsePositiveIds, falseNegativeIds, classifications, theme) {
         const darkTheme = `
             :root {
                 --background: 215 28% 12%;
@@ -994,16 +1102,64 @@
                 --sidebar-ring: 142 65% 40%;
             }
 
+            /* Single mode */
             .djs-element.highlight-correct .djs-visual > :not(text):not(tspan) {
-              fill: #2A6C2A !important;
+                fill: #2A6C2A !important;
             }
 
             .djs-element.highlight-false-positive .djs-visual > :not(text):not(tspan) {
-              fill: #B73131 !important;
+                fill: #BB731E !important;
             }
 
             .djs-element.highlight-false-negative .djs-visual > :not(text):not(tspan) {
-              fill: #BB731E !important;
+                fill: #B73131 !important;
+            }
+
+            /* A/B mode */
+            .djs-element.preview-both-true-positive .djs-visual > :not(text):not(tspan) {
+                fill: #2A6C2A !important;
+            }
+
+            .djs-element.preview-both-false-positive .djs-visual > :not(text):not(tspan) {
+                fill: url(#preview-hatch-red) !important;
+            }
+
+            .djs-element.preview-both-false-negative .djs-visual > :not(text):not(tspan) {
+                fill: #B73131 !important;
+            }
+
+            .djs-element.preview-only-a-true-positive .djs-visual > :not(text):not(tspan) {
+                fill: #4169A1 !important;
+            }
+
+            .djs-element.preview-only-a-false-positive .djs-visual > :not(text):not(tspan) {
+                fill: url(#preview-hatch-blue) !important;
+            }
+
+            .djs-element.preview-only-b-true-positive .djs-visual > :not(text):not(tspan) {
+                fill: #7B4FA3 !important;
+            }
+
+            .djs-element.preview-only-b-false-positive .djs-visual > :not(text):not(tspan) {
+                fill: url(#preview-hatch-purple) !important;
+            }
+
+            #preview-hatch-red line {
+                stroke: #991b1b !important;
+                stroke-opacity: 0.55 !important;
+                stroke-width: 3px !important;
+            }
+
+            #preview-hatch-blue line {
+                stroke: #1d4ed8 !important;
+                stroke-opacity: 0.55 !important;
+                stroke-width: 3px !important;
+            }
+
+            #preview-hatch-purple line {
+                stroke: #7e22ce !important;
+                stroke-opacity: 0.55 !important;
+                stroke-width: 3px !important;
             }
         `
 
@@ -1043,16 +1199,64 @@
               --sidebar-ring: 142 80% 28%;
             }
 
+            /* Single mode */
             .djs-element.highlight-correct .djs-visual > :not(text):not(tspan) {
-              fill: #BEFFBE !important;
+                fill: #BEFFBE !important;
             }
 
             .djs-element.highlight-false-positive .djs-visual > :not(text):not(tspan) {
-              fill: #FFBEBE !important;
+                fill: #FFE1BE !important;
             }
 
             .djs-element.highlight-false-negative .djs-visual > :not(text):not(tspan) {
-              fill: #FFE1BE !important;
+                fill: #FFBEBE !important;
+            }
+
+            /* A/B mode */
+            .djs-element.preview-both-true-positive .djs-visual > :not(text):not(tspan) {
+                fill: #BEFFBE !important;
+            }
+
+            .djs-element.preview-both-false-positive .djs-visual > :not(text):not(tspan) {
+                fill: url(#preview-hatch-red) !important;
+            }
+
+            .djs-element.preview-both-false-negative .djs-visual > :not(text):not(tspan) {
+                fill: #FFBEBE !important;
+            }
+
+            .djs-element.preview-only-a-true-positive .djs-visual > :not(text):not(tspan) {
+                fill: #BEDBFF !important;
+            }
+
+            .djs-element.preview-only-a-false-positive .djs-visual > :not(text):not(tspan) {
+                fill: url(#preview-hatch-blue) !important;
+            }
+
+            .djs-element.preview-only-b-true-positive .djs-visual > :not(text):not(tspan) {
+                fill: #E1BEFF !important;
+            }
+
+            .djs-element.preview-only-b-false-positive .djs-visual > :not(text):not(tspan) {
+                fill: url(#preview-hatch-purple) !important;
+            }
+
+            #preview-hatch-red line {
+                stroke: #991b1b !important;
+                stroke-opacity: 0.55 !important;
+                stroke-width: 3px !important;
+            }
+
+            #preview-hatch-blue line {
+                stroke: #1d4ed8 !important;
+                stroke-opacity: 0.55 !important;
+                stroke-width: 3px !important;
+            }
+
+            #preview-hatch-purple line {
+                stroke: #7e22ce !important;
+                stroke-opacity: 0.55 !important;
+                stroke-width: 3px !important;
             }
         `
 
@@ -1064,8 +1268,9 @@
         try {
             const viewer = new BpmnJS({ container: '#canvas' });
             await viewer.importXML(xml);
-            highlightActivities(viewer, correctIds, falsePositiveIds, falseNegativeIds);
+            highlightActivities(viewer, correctIds, falsePositiveIds, falseNegativeIds, classifications);
             let { svg } = await viewer.saveSVG();
+            svg = addPreviewPatterns(svg);
             svg = svg.replace(
                 /<svg/,
                 m => `${m} style="background-color: hsl(var(--background));"`

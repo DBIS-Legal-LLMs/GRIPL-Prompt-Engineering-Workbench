@@ -1,18 +1,31 @@
 "use client"
 
-import {JSX, ReactNode, useEffect, useState} from "react";
+import { JSX, useEffect, useState } from "react";
 import Image from "next/image";
-import {useTheme} from "next-themes";
+import { useTheme } from "next-themes";
+
+export type PreviewClassification =
+    | "bothTruePositive"
+    | "bothFalsePositive"
+    | "bothFalseNegative"
+    | "bothTrueNegative"
+    | "onlyATruePositive"
+    | "onlyAFalsePositive"
+    | "onlyBTruePositive"
+    | "onlyBFalsePositive"
+
+export type PreviewClassificationMap = Partial<Record<PreviewClassification, string[]>>
 
 interface UseLoadPreviewImageProps {
     testCaseId: number
     correctActivityIds?: string[]
     falsePositiveIds?: string[]
     falseNegativeIds?: string[]
+    classifications?: PreviewClassificationMap
     imageClassName?: string
 }
 
-export default function useLoadPreviewImage({testCaseId, correctActivityIds, falsePositiveIds, falseNegativeIds, imageClassName }: UseLoadPreviewImageProps): {
+export default function useLoadPreviewImage({ testCaseId, correctActivityIds, falsePositiveIds, falseNegativeIds, classifications, imageClassName }: UseLoadPreviewImageProps): {
     previewImage: JSX.Element | undefined
     isLoading: boolean
 } {
@@ -25,9 +38,10 @@ export default function useLoadPreviewImage({testCaseId, correctActivityIds, fal
             setIsLoading(true);
             try {
                 const relativeImageUrl = `/api/dataset/testcase/${testCaseId}/preview?theme=${resolvedTheme}` +
-                    (correctActivityIds ? `&correctIds=${correctActivityIds.join(",")}` : "") +
-                    (falsePositiveIds ? `&falsePositiveIds=${falsePositiveIds.join(",")}` : "") +
-                    (falseNegativeIds ? `&falseNegativeIds=${falseNegativeIds.join(",")}` : "") +
+                    (correctActivityIds ? `&correctIds=${encodeURIComponent(correctActivityIds.join(","))}` : "") +
+                    (falsePositiveIds ? `&falsePositiveIds=${encodeURIComponent(falsePositiveIds.join(","))}` : "") +
+                    (falseNegativeIds ? `&falseNegativeIds=${encodeURIComponent(falseNegativeIds.join(","))}` : "") +
+                    (classifications ? `&classification=${encodeURIComponent(JSON.stringify(classifications))}`: "") +
                     // The salt is used to prevent caching issues with the preview image
                     `&salt=${Math.floor(Math.random() * 99999)}`
 
@@ -55,7 +69,7 @@ export default function useLoadPreviewImage({testCaseId, correctActivityIds, fal
         }
 
         fetchSvgPreview().then()
-    }, [testCaseId, correctActivityIds, falsePositiveIds, falseNegativeIds, resolvedTheme, imageClassName])
+    }, [testCaseId, correctActivityIds, falsePositiveIds, falseNegativeIds, classifications, resolvedTheme, imageClassName])
 
     return {
         previewImage,
