@@ -185,11 +185,13 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
                 return !runTestCases.some(
                     (testCase) =>
                         testCase.modelLabel === info.modelLabel &&
-                        testCase.testCaseId === info.currentTestCaseId
+                        testCase.testCaseId === info.currentTestCaseId &&
+                        getPromptKey(testCase.promptInfo) === getPromptKey(info.promptInfo)
                 ) && !runErrors.some(
                     (error) =>
                         error.modelLabel === info.modelLabel &&
-                        error.testCaseId === info.currentTestCaseId
+                        error.testCaseId === info.currentTestCaseId &&
+                        getPromptKey(error.promptInfo) === getPromptKey(info.promptInfo)
                 );
             })
         );
@@ -695,11 +697,29 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
                                                 {currentStepInfos.map((info, idx) => (
                                                     <span key={`${info.modelLabel}-${info.runNumber}-stepinfo-${idx}`}
                                                         className="whitespace-nowrap">
-                                                        [Run {info.runNumber}] [{info.modelLabel}] Evaluating {info.currentTestCaseName}...
+                                                        [Run {info.runNumber}] [{info.modelLabel}] [{getPromptKey(info.promptInfo)}] Evaluating {info.currentTestCaseName}...
                                                     </span>
                                                 ))}
                                             </div>
-                                            <p>({Array.from(testCasesByRun.values()).reduce((sum, cases) => sum + cases.length, 0) + Array.from(errorsByRun.values()).reduce((sum, errs) => sum + errs.length, 0)} / {currentStepInfos[0]?.totalTestCases * (evaluationRequest?.models.length || 1) * (metadata?.totalRepetitions || 1)})</p>
+                                            <p>
+                                                ({
+                                                    Array.from(testCasesByRun.values()).reduce(
+                                                        (sum, cases) => sum + cases.length,
+                                                        0
+                                                    ) +
+                                                    Array.from(errorsByRun.values()).reduce(
+                                                        (sum, errs) => sum + errs.length,
+                                                        0
+                                                    )
+                                                }
+                                                /
+                                                {
+                                                    (currentStepInfos[0]?.totalTestCases) *
+                                                    (evaluationRequest?.models.length || 1) *
+                                                    (evaluationRequest?.promptConfigurations.length || 1) *
+                                                    (metadata?.totalRepetitions || 1)
+                                                })
+                                            </p>
                                         </div>
                                     )}
                                 </div>
