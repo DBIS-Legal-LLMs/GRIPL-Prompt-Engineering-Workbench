@@ -27,6 +27,8 @@ import { AggregatedChartItem, AggregatedPromptEvaluationResults } from "@/models
 import MetricChart from "@/components/evaluation/charts/aggregated/metric-chart";
 import { useColors } from "@/components/evaluation/charts/common/color-context";
 import MetricsTable from "@/components/evaluation/charts/aggregated/metrics-table";
+import StatisticalTestResults from "@/components/evaluation/charts/aggregated/statistical-test-results";
+import { calculateStatisticalTests, SIGNIFICANCE_LEVEL } from "@/lib/statistical-test-utils";
 import { useToast } from "@/components/ui/toast";
 import { toErrorMessage } from "@/lib/http-error";
 import { Prompt } from "@/models/dto/Prompt";
@@ -660,6 +662,37 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
         [aggregateStats]
     );
 
+    const statisticalTestPromptLabels = useMemo(
+        () => (metadata?.prompts ?? [])
+            .map((prompt) => prompt.promptLabel)
+            .filter((label): label is string => Boolean(label))
+            .slice(0, 2),
+        [metadata]
+    );
+
+    const statisticalTestResults = useMemo(() => {
+        if (!isFinished) {
+            return [];
+        }
+
+        return calculateStatisticalTests(
+            new Map([...testCasesByRun.entries()].map(([runNumber, reports]) => [
+                runNumber,
+                reports.map((report) => ({ ...report, promptLabel: getPromptKey(report.promptInfo) })),
+            ])),
+            new Map([...errorsByRun.entries()].map(([runNumber, errors]) => [
+                runNumber,
+                errors.map((error) => ({ ...error, promptLabel: getPromptKey(error.promptInfo) })),
+            ])),
+            metadata?.modelLabels ?? [],
+            statisticalTestPromptLabels,
+            metadata?.totalRepetitions ?? 1,
+            SIGNIFICANCE_LEVEL
+        );
+    },
+        [isFinished, testCasesByRun, errorsByRun, metadata, statisticalTestPromptLabels]
+    );
+
     return (
         <div className="w-full">
             <EvaluationConfig onMultiConfigChanged={setEvaluationRequest} datasets={datasets} prompts={prompts} onPromptCreated={onPromptCreated} className="mb-6">
@@ -869,6 +902,13 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
                                 />
                             </div>
                             <MetricsTable aggregatedEvaluationResults={aggregateStats} />
+                            {isFinished && (
+                                <StatisticalTestResults
+                                    results={statisticalTestResults}
+                                    alpha={SIGNIFICANCE_LEVEL}
+                                    promptLabels={statisticalTestPromptLabels}
+                                />
+                            )}
                             {aggregatedChartItems.some((item) => item.metrics.ragRunsCounted > 0) && (
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                     <MetricChart
