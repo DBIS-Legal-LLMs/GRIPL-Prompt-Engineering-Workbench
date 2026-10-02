@@ -1,9 +1,10 @@
 "use client"
 
-import { AggregatedEvaluationResults, AggregatedPromptEvaluationResults } from "@/models/evaluation/AggregatedEvaluationResult";
+import { AggregatedPromptEvaluationResults } from "@/models/evaluation/AggregatedEvaluationResult";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
 import html2canvas from "html2canvas"
+import { createLatexTable, downloadLatexTable, escapeLatex, formatLatexMathNumber, formatLatexNumber } from "@/lib/latex-export";
 
 interface MetricsTableProps {
     aggregatedEvaluationResults: AggregatedPromptEvaluationResults
@@ -38,6 +39,80 @@ export default function MetricsTable({ aggregatedEvaluationResults }: MetricsTab
         }
     }
 
+    const handleDownloadLatex = () => {
+        const formatMeanStd = (mean: number, std: number) =>
+            `\\begin{tabular}[t]{@{}r@{}}$${formatLatexNumber(mean)}$ \\\\ $\\pm\\,${formatLatexNumber(std)}$\\end{tabular}`;
+        const performanceRows: string[] = [];
+        const classificationRows: string[] = [];
+        const outcomeRows: string[] = [];
+
+        for (const [modelLabel, promptResults] of Object.entries(aggregatedEvaluationResults)) {
+            for (const [promptLabel, metrics] of Object.entries(promptResults)) {
+                const prefix = [escapeLatex(modelLabel), escapeLatex(promptLabel)];
+                performanceRows.push([
+                    ...prefix,
+                    formatMeanStd(metrics.avgPrecision, metrics.stdPrecision),
+                    formatMeanStd(metrics.avgRecall, metrics.stdRecall),
+                    formatMeanStd(metrics.avgF1Score, metrics.stdF1Score),
+                    formatMeanStd(metrics.avgAccuracy, metrics.stdAccuracy),
+                ].join(" & "));
+                classificationRows.push([
+                    ...prefix,
+                    formatMeanStd(metrics.avgTruePositives, metrics.stdTruePositives),
+                    formatMeanStd(metrics.avgTrueNegatives, metrics.stdTrueNegatives),
+                    formatMeanStd(metrics.avgFalsePositives, metrics.stdFalsePositives),
+                    formatMeanStd(metrics.avgFalseNegatives, metrics.stdFalseNegatives),
+                ].join(" & "));
+                outcomeRows.push([
+                    ...prefix,
+                    formatMeanStd(metrics.avgPassed, metrics.stdPassed),
+                    formatMeanStd(metrics.avgFailed, metrics.stdFailed),
+                    formatMeanStd(metrics.avgErrors, metrics.stdErrors),
+                    metrics.avgAmountOfRetries === undefined || metrics.stdAmountOfRetries === undefined
+                        ? formatLatexMathNumber(undefined)
+                        : formatMeanStd(metrics.avgAmountOfRetries, metrics.stdAmountOfRetries),
+                ].join(" & "));
+            }
+        }
+
+        const tables = [
+            createLatexTable(
+                "Aggregated performance metrics",
+                "tab:metrics-performance",
+                `
+        >{\\hsize=1.2\\hsize\\raggedright\\arraybackslash}X
+        >{\\hsize=1.4\\hsize\\raggedright\\arraybackslash}X
+        *{4}{>{\\hsize=0.85\\hsize\\centering\\arraybackslash}X}
+    `,
+                "Model & Prompt & Precision & Recall & $F_{1}$ & Accuracy",
+                performanceRows,
+            ),
+            createLatexTable(
+                "Aggregated classification counts",
+                "tab:metrics-classification-counts",
+                `
+        >{\\hsize=1.2\\hsize\\raggedright\\arraybackslash}X
+        >{\\hsize=1.4\\hsize\\raggedright\\arraybackslash}X
+        *{4}{>{\\hsize=0.85\\hsize\\centering\\arraybackslash}X}
+    `,
+                "Model & Prompt & TP & TN & FP & FN",
+                classificationRows,
+            ),
+            createLatexTable(
+                "Aggregated evaluation outcomes",
+                "tab:metrics-outcomes",
+                `
+        >{\\hsize=1.2\\hsize\\raggedright\\arraybackslash}X
+        >{\\hsize=1.4\\hsize\\raggedright\\arraybackslash}X
+        *{4}{>{\\hsize=0.85\\hsize\\centering\\arraybackslash}X}
+    `,
+                "Model & Prompt & Passed & Failed & Errors & Retries",
+                outcomeRows,
+            ),
+        ];
+        downloadLatexTable(tables.join("\n"), "metrics-table.tex");
+    }
+
     return <Card>
         <CardHeader>
             <div className="flex items-start justify-between">
@@ -45,7 +120,7 @@ export default function MetricsTable({ aggregatedEvaluationResults }: MetricsTab
                     <CardTitle>Metrics Table</CardTitle>
                     <CardDescription>Model performance metrics with averages and standard deviations over all runs and test cases.</CardDescription>
                 </div>
-                <ChartMenu chartId={chartId} onDownload={handleDownload} />
+                <ChartMenu chartId={chartId} onDownload={handleDownload} onDownloadLatex={handleDownloadLatex} />
             </div>
         </CardHeader>
         <CardContent>

@@ -9,10 +9,8 @@ export interface EvaluationMetadataReport {
     datasets: { id: number; name: string }[];
     timestamp: string;
     totalTestCases: number;
-    defaultEvaluationEndpoint: string;
     seed: number;
     totalRepetitions?: number;
-    activitiesOnly?: boolean;
     markdown: string;
 }
 

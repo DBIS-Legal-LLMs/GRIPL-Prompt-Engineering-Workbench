@@ -7,23 +7,25 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreVertical, Download, Palette } from "lucide-react"
+import { MoreVertical, Download, FileCode2, Palette } from "lucide-react"
 
 interface WithChartId {
     chartId: string
     onColorConfig?: () => void
     onDownload?: () => void
+    onDownloadLatex?: () => void
 }
 
 interface WithDownload {
     chartId?: undefined
     onColorConfig?: () => void
-    onDownload: () => void
+    onDownload?: () => void
+    onDownloadLatex?: () => void
 }
 
 type ChartMenuProps = WithChartId | WithDownload
 
-export default function ChartMenu({ chartId, onColorConfig, onDownload }: ChartMenuProps) {
+export default function ChartMenu({ chartId, onColorConfig, onDownload, onDownloadLatex }: ChartMenuProps) {
 
     const handleDownload = async () => {
         if (!chartId) return
@@ -54,10 +56,14 @@ export default function ChartMenu({ chartId, onColorConfig, onDownload }: ChartM
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={onDownload || handleDownload}>
+                {(onDownload || chartId) && <DropdownMenuItem onClick={onDownload || handleDownload}>
                     <Download className="mr-2 h-4 w-4" />
                     Download as PNG
-                </DropdownMenuItem>
+                </DropdownMenuItem>}
+                {onDownloadLatex && <DropdownMenuItem onClick={onDownloadLatex}>
+                    <FileCode2 className="mr-2 h-4 w-4" />
+                    Download as LaTeX Table
+                </DropdownMenuItem>}
                 { onColorConfig && <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={onColorConfig}>

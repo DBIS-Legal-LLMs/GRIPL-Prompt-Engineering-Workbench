@@ -34,6 +34,8 @@ import { toErrorMessage } from "@/lib/http-error";
 import { Prompt } from "@/models/dto/Prompt";
 import { ChartItem } from "@/models/evaluation/PromptChartData";
 import { classificationScopeLabels } from "@/models/dto/PromptVersion";
+import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
+import { createLatexTable, downloadLatexTable, escapeLatex } from "@/lib/latex-export";
 
 type ModelReportEnvelope = {
     modelLabel: string;
@@ -693,6 +695,56 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
         [isFinished, testCasesByRun, errorsByRun, metadata, statisticalTestPromptLabels]
     );
 
+    const handleDownloadMetadataLatex = () => {
+        if (!metadata) return;
+
+        const formatMultilineCell = (values: string[]) =>
+            `\\parbox[t]{\\linewidth}{%
+                ${values.map((value) => `\\hangindent=0.75em
+                \\hangafter=1
+                \\textbullet\\ ${escapeLatex(value)}`).join("\n\n                ")}
+            }`;
+
+        const rows = [
+            ["Models", formatMultilineCell(metadata.modelLabels.map((label, index) =>
+                `${label} (Temperature: ${metadata.modelTemperatures[index] ?? "Default"}, Top-P: ${metadata.modelTopPs?.[index] ?? "Default"})`
+            ))],
+            ["Prompts", formatMultilineCell((metadata.prompts ?? []).map((prompt) => {
+                const promptLabel = prompt.promptLabel ?? prompt.promptName ?? "Unnamed Prompt";
+                const details = [
+                    prompt.promptName && !promptLabel?.toLowerCase().includes(prompt.promptName.toLowerCase())
+                        ? prompt.promptName
+                        : null,
+                    prompt.versionNumber === null ? "Unsaved Prompt" : `Version ${prompt.versionNumber}${prompt.isOverride ? " (override)" : ""}`,
+                    `Classification Scope: ${prompt.classificationScope ? classificationScopeLabels[prompt.classificationScope] : "Unknown"}`,
+                ].filter((detail): detail is string => detail !== null);
+                return `${promptLabel} (${details.join(", ")})`;
+            }))],
+            ["Datasets", escapeLatex(metadata.datasets.map((dataset) => dataset.name).join(", "))],
+            ["Total Test Cases", metadata.totalTestCases],
+            ["Total Runs", metadata.totalRepetitions ?? "-"],
+            ["Seed", metadata.seed],
+            ["Timestamp", new Date(metadata.timestamp).toLocaleString()],
+        ].map(([key, value]) => `${escapeLatex(key)}
+            &
+            ${typeof value === "string" && value.startsWith("\\parbox") ? value : escapeLatex(value)}`);
+
+        downloadLatexTable(
+            createLatexTable(
+                "Evaluation metadata",
+                "tab:evaluation-metadata",
+                `
+        >{\\bfseries\\raggedright\\arraybackslash}p{3.0cm}
+        >{\\raggedright\\arraybackslash}X
+    `,
+                "",
+                rows,
+                "bottom",
+            ),
+            "evaluation-metadata.tex",
+        );
+    };
+
     return (
         <div className="w-full">
             <EvaluationConfig onMultiConfigChanged={setEvaluationRequest} datasets={datasets} prompts={prompts} onPromptCreated={onPromptCreated} className="mb-6">
@@ -768,7 +820,10 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
                     {/* Metadata */}
                     <Card className="mb-6">
                         <CardHeader>
-                            <h3 className="text-xl font-semibold">Evaluation Metadata</h3>
+                            <div className="flex items-start justify-between">
+                                <h3 className="text-xl font-semibold">Evaluation Metadata</h3>
+                                <ChartMenu onDownloadLatex={handleDownloadMetadataLatex} />
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <>{metadata && <CardDescription>
@@ -847,7 +902,6 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
                                         </tr>
                                         <tr><td>Datasets:</td><td className="pl-4">{metadata.datasets.map(d => d.name).join(", ")}</td></tr>
                                         <tr><td>Total Test Cases:</td><td className="pl-4">{metadata.totalTestCases}</td></tr>
-                                        <tr><td>Default Evaluation Endpoint:</td><td className="pl-4">{metadata.defaultEvaluationEndpoint}</td></tr>
                                         {metadata.totalRepetitions && metadata.totalRepetitions >= 1 && <tr><td>Total Runs:</td><td className="pl-4">{metadata.totalRepetitions}</td></tr>}
                                         <tr><td>Seed:</td><td className="pl-4">{metadata.seed}</td></tr>
                                         <tr><td>Timestamp:</td><td className="pl-4">{new Date(metadata.timestamp).toLocaleString()}</td></tr>
