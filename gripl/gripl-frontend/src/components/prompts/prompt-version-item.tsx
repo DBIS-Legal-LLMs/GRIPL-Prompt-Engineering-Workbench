@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import DeletePromptVersionButton from "@/components/prompts/delete-prompt-version-button";
+import ReactMarkdown from "react-markdown";
 
 interface PromptVersionItemProps {
     version: PromptVersion;
@@ -58,9 +59,9 @@ export default function PromptVersionItem({ version, isDefault, isLatestVersion,
                         <CardContent className="space-y-6 pt-1">
                             <div className="space-y-3">
                                 <p className="text-sm font-medium">Template</p>
-                                <pre className="whitespace-pre-wrap rounded-md border bg-gray-100 p-3 text-sm">
-                                    {version.template}
-                                </pre>
+                                <div className="rounded-md border bg-gray-100 p-3 text-sm [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_code]:rounded [&_code]:bg-gray-200 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold [&_li]:ml-6 [&_ol]:list-decimal [&_p]:m-0 [&_p]:whitespace-pre-wrap [&_p+_p]:mt-4 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-gray-200 [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_ul]:list-disc">
+                                    <ReactMarkdown>{version.template}</ReactMarkdown>
+                                </div>
                             </div>
 
                             <div className="space-y-2">
@@ -71,7 +72,9 @@ export default function PromptVersionItem({ version, isDefault, isLatestVersion,
                                             {version.variables.map((variable) => (
                                                 <div key={variable.name} className="contents">
                                                     <span className="min-w-0 whitespace-normal break-words font-mono font-semibold">{`{${variable.name}}:`}</span>
-                                                    <span className="min-w-0 whitespace-pre-wrap break-words">{variable.value}</span>
+                                                    <div className="min-w-0 break-words [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_code]:rounded [&_code]:bg-gray-200 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold [&_li]:ml-6 [&_ol]:list-decimal [&_p]:m-0 [&_p]:whitespace-pre-wrap [&_p+_p]:mt-4 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-gray-200 [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_ul]:list-disc">
+                                                        <ReactMarkdown>{variable.value}</ReactMarkdown>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
