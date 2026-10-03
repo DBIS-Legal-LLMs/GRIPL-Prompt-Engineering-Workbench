@@ -125,7 +125,7 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
 
         const validationError = validatePromptTemplate(template);
         if (validationError) {
-            showToast({ title: "Prompt template validation failed",description: validationError, variant: "info", duration: 8000 });
+            showToast({ title: "Prompt template validation failed", description: validationError, variant: "info", duration: 8000 });
             return;
         }
 
@@ -173,8 +173,13 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
         const textarea = textareaRef.current;
         if (!textarea) return;
 
+        const windowScrollTop = window.scrollY;
+        const windowScrollLeft = window.scrollX;
+
         textarea.style.height = "auto";
         textarea.style.height = `${textarea.scrollHeight}px`;
+
+        window.scrollTo(windowScrollLeft, windowScrollTop);
     }
 
     useEffect(() => {
@@ -255,7 +260,7 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
                                 editingVariableName === variable.name ? (
                                     <div key={variable.name} className="contents">
                                         <div className="flex h-9 min-w-0 items-center gap-1 font-mono text-sm">
-                                            <span>{"{"}</span>
+                                            <span>{"{{"}</span>
                                             <Input
                                                 value={variableName}
                                                 onChange={(event) => setVariableName(event.target.value)}
@@ -263,7 +268,7 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
                                                 placeholder="Variable name"
                                                 className="min-w-0"
                                             />
-                                            <span>{"}:"}</span>
+                                            <span>{"}}:"}</span>
                                         </div>
 
                                         <Textarea
@@ -295,7 +300,7 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
                                 ) : (
                                     <div key={variable.name} className="contents">
 
-                                        <span className="min-w-0 whitespace-normal break-words font-mono text-sm font-semibold">{`{${variable.name}}:`}</span>
+                                        <span className="min-w-0 whitespace-normal break-words font-mono text-sm font-semibold">{`{{${variable.name}}}:`}</span>
 
                                         <span className="min-w-0 whitespace-pre-wrap break-words font-mono text-sm">{variable.value}</span>
 
@@ -327,7 +332,7 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
                             {isAddingVariable && editingVariableName === null && (
                                 <div className="contents">
                                     <div className="flex h-9 min-w-0 items-center gap-1 font-mono text-sm">
-                                        <span>{"{"}</span>
+                                        <span>{"{{"}</span>
                                         <Input
                                             value={variableName}
                                             onChange={(event) => setVariableName(event.target.value)}
@@ -335,7 +340,7 @@ export default function CreatePromptVersionCard({ idOfParentPrompt, previousVers
                                             placeholder="Variable name"
                                             className="min-w-0"
                                         />
-                                        <span>{"}:"}</span>
+                                        <span>{"}}:"}</span>
                                     </div>
 
                                     <Textarea

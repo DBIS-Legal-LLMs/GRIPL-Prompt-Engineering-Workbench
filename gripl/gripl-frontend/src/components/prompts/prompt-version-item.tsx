@@ -71,7 +71,7 @@ export default function PromptVersionItem({ version, isDefault, isLatestVersion,
                                         <div className="grid grid-cols-[fit-content(14rem)_minmax(0,1fr)] gap-x-2 gap-y-2 px-3 pb-3 text-sm">
                                             {version.variables.map((variable) => (
                                                 <div key={variable.name} className="contents">
-                                                    <span className="min-w-0 whitespace-normal break-words font-mono font-semibold">{`{${variable.name}}:`}</span>
+                                                    <span className="min-w-0 whitespace-normal break-words font-mono font-semibold">{`{{${variable.name}}}:`}</span>
                                                     <div className="min-w-0 break-words [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_code]:rounded [&_code]:bg-gray-200 [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold [&_li]:ml-6 [&_ol]:list-decimal [&_p]:m-0 [&_p]:whitespace-pre-wrap [&_p+_p]:mt-4 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-gray-200 [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_ul]:list-disc">
                                                         <ReactMarkdown>{variable.value}</ReactMarkdown>
                                                     </div>

@@ -64,6 +64,8 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
     const [isEditorOpen, setIsEditorOpen] = useState(selectNewPromptOnMount);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const resizeFrameRef = useRef<number | null>(null);
+    const templateChangeFromInputRef = useRef(false);
     const variableValueTextareaRef = useRef<HTMLTextAreaElement>(null);
     const hasUserSelectedPromptRef = useRef(false);
 
@@ -160,56 +162,52 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
     }, [loadDefaultPrompt]);
 
     useEffect(() => {
-        if (selectedPromptId === null && !isNewPrompt) {
-            onPromptConfigChanged(null);
-            return;
-        }
-
-        const effectivePromptLabel = promptLabel.trim() || instanceId;
-
-        if (isNewPrompt) {
-            if (!classificationScope || !template.trim()) {
+        const timeoutId = window.setTimeout(() => {
+            if (selectedPromptId === null && !isNewPrompt) {
                 onPromptConfigChanged(null);
                 return;
             }
 
+            const effectivePromptLabel = promptLabel.trim() || instanceId;
+
+            if (isNewPrompt) {
+                if (!classificationScope || !template.trim()) {
+                    onPromptConfigChanged(null);
+                    return;
+                }
+
+                onPromptConfigChanged({
+                    promptLabel: effectivePromptLabel,
+                    promptVersionId: null,
+                    promptVersionOverride: {
+                        template,
+                        variables: cloneVariables(variables),
+                        classificationScope,
+                    }
+                });
+                return;
+            }
+
+            if (!selectedVersion) {
+                onPromptConfigChanged(null);
+                return;
+            }
+
+            const hasChanges = hasPromptChangesForEvaluation();
+
             onPromptConfigChanged({
                 promptLabel: effectivePromptLabel,
-                promptVersionId: null,
-                promptVersionOverride: {
+                promptVersionId: selectedVersion.id,
+                promptVersionOverride: hasChanges ? {
                     template,
                     variables: cloneVariables(variables),
-                    classificationScope,
-                }
+                    classificationScope: classificationScope!
+                } : null
             });
-            return;
-        }
+        }, 100);
 
-        if (!selectedVersion) {
-            onPromptConfigChanged(null);
-            return;
-        }
-
-        const hasChanges = hasPromptChangesForEvaluation();
-
-        onPromptConfigChanged({
-            promptLabel: effectivePromptLabel,
-            promptVersionId: selectedVersion.id,
-            promptVersionOverride: hasChanges ? {
-                template,
-                variables: cloneVariables(variables),
-                classificationScope: classificationScope!
-            } : null
-        });
+        return () => window.clearTimeout(timeoutId);
     }, [selectedPromptId, selectedVersion, template, variables, classificationScope, promptLabel, isNewPrompt, instanceId, prompts, onPromptConfigChanged]);
-
-    function resizeTextarea() {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        textarea.style.height = "auto";
-        textarea.style.height = `${textarea.scrollHeight}px`;
-    }
 
     function applyVersion(version: PromptVersion) {
         setSelectedVersion(version);
@@ -446,15 +444,42 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
         }
     }
 
+    function handleTemplateChange(templateValue: string) {
+        templateChangeFromInputRef.current = true;
+        setTemplate(templateValue);
+        scheduleResizeTextarea();
+    }
+
+    function resizeTextarea() {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const windowScrollTop = window.scrollY;
+        const windowScrollLeft = window.scrollX;
+
+        textarea.style.height = "auto";
+        textarea.style.height = `${textarea.scrollHeight}px`;
+
+        window.scrollTo(windowScrollLeft, windowScrollTop);
+    }
+
+    function scheduleResizeTextarea() {
+        if (resizeFrameRef.current !== null) {
+            return;
+        }
+
+        resizeFrameRef.current = requestAnimationFrame(() => {
+            resizeFrameRef.current = null;
+            resizeTextarea();
+        });
+    }
+
     useEffect(() => {
-        if (isEditorOpen) {
+        if (isEditorOpen && !templateChangeFromInputRef.current) {
             resizeTextarea();
         }
-    }, [template, isEditorOpen, canAddPrompt]);
-
-    function handleTemplateChange(templateValue: string) {
-        setTemplate(templateValue);
-    }
+        templateChangeFromInputRef.current = false;
+    }, [template, isEditorOpen]);
 
     function resizeVariableValueTextarea() {
         const textarea = variableValueTextareaRef.current;
@@ -625,7 +650,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                                         editingVariableName === variable.name ? (
                                             <div key={variable.name} className="contents">
                                                 <div className="flex h-9 min-w-0 items-center gap-1 font-mono text-sm">
-                                                    <span>{"{"}</span>
+                                                    <span>{"{{"}</span>
                                                     <Input
                                                         value={variableName}
                                                         onChange={(event) => setVariableName(event.target.value)}
@@ -633,7 +658,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                                                         placeholder="Variable name"
                                                         className="min-w-0"
                                                     />
-                                                    <span>{"}:"}</span>
+                                                    <span>{"}}:"}</span>
                                                 </div>
 
                                                 <Textarea
@@ -665,7 +690,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                                         ) : (
                                             <div key={variable.name} className="contents">
 
-                                                <span className="min-w-0 whitespace-normal break-words font-mono text-sm font-semibold">{`{${variable.name}}:`}</span>
+                                                <span className="min-w-0 whitespace-normal break-words font-mono text-sm font-semibold">{`{{${variable.name}}}:`}</span>
 
                                                 <span className="min-w-0 whitespace-pre-wrap break-words font-mono text-sm">{variable.value}</span>
 
@@ -697,7 +722,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                                     {isAddingVariable && editingVariableName === null && (
                                         <div className="contents">
                                             <div className="flex h-9 min-w-0 items-center gap-1 font-mono text-sm">
-                                                <span>{"{"}</span>
+                                                <span>{"{{"}</span>
                                                 <Input
                                                     value={variableName}
                                                     onChange={(event) => setVariableName(event.target.value)}
@@ -705,7 +730,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                                                     placeholder="Variable name"
                                                     className="min-w-0"
                                                 />
-                                                <span>{"}:"}</span>
+                                                <span>{"}}:"}</span>
                                             </div>
 
                                             <Textarea
