@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { validatePromptTemplate } from "@/lib/prompt-template-validation";
 import { EvaluationPromptConfiguration } from "@/models/dto/MultiEvaluationRequest";
+import { YamlPromptConfiguration } from "@/models/evaluation/YamlPromptConfiguration";
 import { Prompt } from "@/models/dto/Prompt";
 import { ClassificationScope, Variable, PromptVersion, classificationScopeLabels } from "@/models/dto/PromptVersion";
 import { Check, ChevronDown, ChevronUp, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
@@ -28,10 +29,13 @@ interface EvaluationConfigPromptSettingsProps {
     loadDefaultPrompt?: boolean;
     selectNewPromptOnMount?: boolean;
     onPromptConfigChanged: (promptConfig: EvaluationPromptConfiguration | null) => void;
+    onYamlPromptConfigChanged: (promptConfig: YamlPromptConfiguration | null) => void;
     onPromptCreated: (createdPrompt: Prompt) => void;
     onRemove?: () => void;
     onAddPrompt?: () => void;
     canAddPrompt?: boolean;
+    importedConfiguration?: YamlPromptConfiguration | null;
+    importRevision?: number;
 }
 
 /**
@@ -41,7 +45,7 @@ interface EvaluationConfigPromptSettingsProps {
  * for handling prompt configuration changes and prompt creation.
  * @returns {JSX.Element} The rendered evaluation config prompt settings component.
  */
-export default function EvaluationConfigPromptSettings({ prompts, instanceId, title, loadDefaultPrompt, selectNewPromptOnMount = false, onPromptConfigChanged, onPromptCreated, onRemove, onAddPrompt, canAddPrompt }: EvaluationConfigPromptSettingsProps) {
+export default function EvaluationConfigPromptSettings({ prompts, instanceId, title, loadDefaultPrompt, selectNewPromptOnMount = false, onPromptConfigChanged, onYamlPromptConfigChanged, onPromptCreated, onRemove, onAddPrompt, canAddPrompt, importedConfiguration, importRevision = 0 }: EvaluationConfigPromptSettingsProps) {
     const { showToast, showError } = useToast();
 
     const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
@@ -162,9 +166,84 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
     }, [loadDefaultPrompt]);
 
     useEffect(() => {
+        if (importRevision === 0 || importedConfiguration === undefined) return;
+
+        let isActive = true;
+        hasUserSelectedPromptRef.current = false;
+
+        async function applyImportedConfiguration() {
+            const configuration = importedConfiguration;
+            if (!configuration) {
+                setSelectedPromptId(null);
+                setSelectedVersion(null);
+                setVersions([]);
+                setTemplate("");
+                setVariables([]);
+                setClassificationScope(null);
+                setPromptLabel("");
+                setIsNewPrompt(false);
+                setIsEditorOpen(true);
+                return;
+            }
+
+            const hasStoredPromptVersion = configuration.promptId !== null && configuration.promptId !== undefined &&
+                configuration.promptVersionId !== null && configuration.promptVersionId !== undefined;
+
+            if (hasStoredPromptVersion) {
+                setIsLoadingVersions(true);
+                try {
+                    const loadedVersions = await getPromptVersions(configuration.promptId!);
+                    if (!isActive) return;
+
+                    const version = loadedVersions.find((candidate) => candidate.id === configuration.promptVersionId);
+                    if (!version) return;
+
+                    setSelectedPromptId(configuration.promptId!);
+                    setIsNewPrompt(false);
+                    setVersions(loadedVersions);
+                    setSelectedVersion(version);
+                    setPromptLabel(configuration.promptLabel);
+                    if (configuration.template !== null && configuration.template !== undefined &&
+                        configuration.classificationScope !== null && configuration.classificationScope !== undefined) {
+                        setTemplate(configuration.template);
+                        setVariables(cloneVariables(configuration.variables ?? []));
+                        setClassificationScope(configuration.classificationScope);
+                    } else {
+                        applyVersion(version);
+                    }
+                    setIsEditorOpen(true);
+                } catch (error) {
+                    console.error("Failed to load imported prompt version:", error);
+                    showError("Failed to load imported prompt version.");
+                } finally {
+                    if (isActive) setIsLoadingVersions(false);
+                }
+                return;
+            }
+
+            setSelectedPromptId(null);
+            setSelectedVersion(null);
+            setVersions([]);
+            setPromptLabel(configuration.promptLabel);
+            setTemplate(configuration.template ?? "");
+            setVariables(cloneVariables(configuration.variables ?? []));
+            setClassificationScope(configuration.classificationScope ?? null);
+            setIsNewPrompt(true);
+            setIsEditorOpen(true);
+        }
+
+        applyImportedConfiguration();
+
+        return () => {
+            isActive = false;
+        };
+    }, [importRevision]);
+
+    useEffect(() => {
         const timeoutId = window.setTimeout(() => {
             if (selectedPromptId === null && !isNewPrompt) {
                 onPromptConfigChanged(null);
+                onYamlPromptConfigChanged(null);
                 return;
             }
 
@@ -173,6 +252,7 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
             if (isNewPrompt) {
                 if (!classificationScope || !template.trim()) {
                     onPromptConfigChanged(null);
+                    onYamlPromptConfigChanged(null);
                     return;
                 }
 
@@ -185,11 +265,20 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                         classificationScope,
                     }
                 });
+                onYamlPromptConfigChanged({
+                    promptId: null,
+                    promptVersionId: null,
+                    promptLabel: effectivePromptLabel,
+                    template,
+                    variables: cloneVariables(variables),
+                    classificationScope,
+                });
                 return;
             }
 
             if (!selectedVersion) {
                 onPromptConfigChanged(null);
+                onYamlPromptConfigChanged(null);
                 return;
             }
 
@@ -204,10 +293,18 @@ export default function EvaluationConfigPromptSettings({ prompts, instanceId, ti
                     classificationScope: classificationScope!
                 } : null
             });
+            onYamlPromptConfigChanged({
+                promptId: selectedPromptId,
+                promptVersionId: selectedVersion.id,
+                promptLabel: effectivePromptLabel,
+                template,
+                variables: cloneVariables(variables),
+                classificationScope,
+            });
         }, 100);
 
         return () => window.clearTimeout(timeoutId);
-    }, [selectedPromptId, selectedVersion, template, variables, classificationScope, promptLabel, isNewPrompt, instanceId, prompts, onPromptConfigChanged]);
+    }, [selectedPromptId, selectedVersion, template, variables, classificationScope, promptLabel, isNewPrompt, instanceId, prompts, onPromptConfigChanged, onYamlPromptConfigChanged]);
 
     function applyVersion(version: PromptVersion) {
         setSelectedVersion(version);

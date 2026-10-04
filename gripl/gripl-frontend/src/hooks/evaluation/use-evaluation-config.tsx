@@ -189,6 +189,7 @@ export function useEvaluationConfig(
         setRagMode,
         setEvaluateRag,
         setPromptConfiguration,
+        setPromptConfigurations,
         addModel,
         removeModel,
         duplicateModel,

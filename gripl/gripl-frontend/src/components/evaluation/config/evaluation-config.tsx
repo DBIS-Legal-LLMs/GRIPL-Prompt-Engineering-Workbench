@@ -15,6 +15,7 @@ import EvaluationConfigPromptSettings from "./evaluation-config-prompt-settings"
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { YamlPromptConfiguration } from "@/models/evaluation/YamlPromptConfiguration";
 
 interface EvaluationConfigCardMultiProps {
     className?: string;
@@ -29,6 +30,8 @@ export default function EvaluationConfig({ className, children, datasets, prompt
     const config = useEvaluationConfig(datasets, onMultiConfigChanged);
 
     const [isComparisonPromptOpen, setIsComparisonPromptOpen] = useState(false);
+    const [promptImportRevision, setPromptImportRevision] = useState(0);
+    const [yamlPromptConfigurations, setYamlPromptConfigurations] = useState<Array<YamlPromptConfiguration | null>>([null, null]);
 
     const handlePrimaryPromptConfigChanged = useCallback((promptConfiguration: EvaluationPromptConfiguration | null) => {
         config.setPromptConfiguration(0, promptConfiguration);
@@ -53,6 +56,14 @@ export default function EvaluationConfig({ className, children, datasets, prompt
         useRag: config.useRag,
         ragMode: config.ragMode,
         evaluateRag: config.evaluateRag,
+        prompts,
+        yamlPromptConfigurations,
+        setPromptConfigurations: (configurations) => {
+            config.setPromptConfigurations(configurations);
+            setIsComparisonPromptOpen(configurations.filter(Boolean).length > 1);
+            setPromptImportRevision((revision) => revision + 1);
+        },
+        setYamlPromptConfigurations,
         setDefaultEndpointChoice: (v) => config.setDefaultEndpointChoice(v),
         setDefaultPresetEndpoint: config.setDefaultPresetEndpoint,
         setDefaultCustomEndpoint: config.setDefaultCustomEndpoint,
@@ -60,6 +71,7 @@ export default function EvaluationConfig({ className, children, datasets, prompt
         setMaxConcurrent: config.setMaxConcurrent,
         setRepetitions: config.setRepetitions,
         setSelectedDatasets: config.setSelectedDatasets,
+        setSelectedTestCaseIds: config.setSelectedTestCaseIds,
         setModels: config.setModels,
         setUseRag: config.setUseRag,
         setRagMode: config.setRagMode,
@@ -125,7 +137,10 @@ export default function EvaluationConfig({ className, children, datasets, prompt
                         loadDefaultPrompt
                         prompts={prompts}
                         onPromptConfigChanged={handlePrimaryPromptConfigChanged}
+                        onYamlPromptConfigChanged={(yamlConfiguration) => setYamlPromptConfigurations((current) => [yamlConfiguration, current[1] ?? null])}
                         onPromptCreated={onPromptCreated}
+                        importedConfiguration={yamlPromptConfigurations[0]}
+                        importRevision={promptImportRevision}
                         onAddPrompt={() => setIsComparisonPromptOpen(true)}
                         canAddPrompt={!isComparisonPromptOpen}
                     />
@@ -137,7 +152,10 @@ export default function EvaluationConfig({ className, children, datasets, prompt
                             prompts={prompts}
                             selectNewPromptOnMount={true}
                             onPromptConfigChanged={handleComparisonPromptConfigChanged}
+                            onYamlPromptConfigChanged={(yamlConfiguration) => setYamlPromptConfigurations((current) => [current[0] ?? null, yamlConfiguration])}
                             onPromptCreated={onPromptCreated}
+                            importedConfiguration={yamlPromptConfigurations[1]}
+                            importRevision={promptImportRevision}
                             onRemove={() => {
                                 config.setPromptConfiguration(1, null);
                                 setIsComparisonPromptOpen(false);

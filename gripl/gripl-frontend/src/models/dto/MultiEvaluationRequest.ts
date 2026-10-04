@@ -15,6 +15,7 @@ export interface MultiEvaluationRequest {
 
 export interface ModelRunConfig {
     label: string;
+    evaluationEndpoint?: string | null;
     llmProps?: LlmPropsOverride | null;
 }
 
@@ -23,6 +24,8 @@ export interface LlmPropsOverride {
     modelName?: string | null;
     apiKey?: string | null;
     timeoutSeconds?: number | null;
+    temperature?: number | null;
+    topP?: number | null;
 }
 
 export interface EvaluationPromptConfiguration {
