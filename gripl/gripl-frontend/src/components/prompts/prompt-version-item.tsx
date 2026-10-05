@@ -86,7 +86,7 @@ export default function PromptVersionItem({ version, isDefault, isLatestVersion,
                 </Card>
             </Collapsible>
 
-            {isLatestVersion ? (
+            {isLatestVersion && !((version.promptId === 0 || version.promptId === 1) && (version.versionNumber === 1 || version.versionNumber === 2)) ? (
                 <DeletePromptVersionButton promptVersion={version} disabled={disabled} onVersionDeleted={onVersionDeleted} className="h-[76px] w-full" />
             ) : (
                 <div />

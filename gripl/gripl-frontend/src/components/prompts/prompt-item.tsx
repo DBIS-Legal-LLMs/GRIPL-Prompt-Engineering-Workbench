@@ -280,12 +280,16 @@ export default function PromptItem({ prompt, promptIdWithVersionDraft, startVers
                     Create new Version
                 </Button>
 
-                <DeletePromptButton
-                    prompt={prompt}
-                    disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion}
-                    onPromptDeleted={onPromptDeleted}
-                    className="h-20 w-full"
-                />
+                {prompt.id === 0 || prompt.id === 1 ? (
+                    <div />
+                ) : (
+                    <DeletePromptButton
+                        prompt={prompt}
+                        disabled={isLoading || isCreatingVersion || isAnotherPromptCreatingVersion}
+                        onPromptDeleted={onPromptDeleted}
+                        className="h-20 w-full"
+                    />
+                )}
             </div>
 
             <CollapsibleContent className="space-y-3 pb-0">
