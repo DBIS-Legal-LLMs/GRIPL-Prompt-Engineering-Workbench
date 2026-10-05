@@ -169,8 +169,36 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
         setSelectedRun(1);
     };
 
+    function hasCompleteEvaluationConfiguration(request: MultiEvaluationRequest): boolean {
+        if (request.models.length === 0 || request.datasets.length === 0 || (request.evaluationDataIds?.length ?? 0) === 0) {
+            return false;
+        }
+
+        return request.promptConfigurations.length > 0 && request.promptConfigurations.every((promptConfiguration) => {
+            if (promptConfiguration.promptVersionId !== null && promptConfiguration.promptVersionId !== undefined) {
+                return true;
+            }
+
+            const override = promptConfiguration.promptVersionOverride;
+            return override !== null && override !== undefined &&
+                override.template.trim().length > 0 &&
+                override.classificationScope !== undefined &&
+                override.classificationScope !== null;
+        });
+    }
+
     const handleEvaluationStart = async () => {
         if (!evaluationRequest) return;
+
+        if (!hasCompleteEvaluationConfiguration(evaluationRequest)) {
+            showToast({
+                title: "Evaluation settings are incomplete.",
+                description: "Please provide all required settings before starting the evaluation.",
+                variant: "info",
+            });
+            return;
+        }
+
         resetState();
         console.log("Sending request", evaluationRequest);
         const res = await fetch(`/api/gdpr/evaluation/stream`, {
