@@ -32,6 +32,10 @@ export default function useLoadPreviewImage({ testCaseId, correctActivityIds, fa
     const { resolvedTheme } = useTheme()
     const [previewImage, setPreviewImage] = useState<JSX.Element | undefined>(undefined)
     const [isLoading, setIsLoading] = useState<boolean>(true)
+    const correctActivityIdsKey = correctActivityIds?.join(",")
+    const falsePositiveIdsKey = falsePositiveIds?.join(",")
+    const falseNegativeIdsKey = falseNegativeIds?.join(",")
+    const classificationsKey = classifications ? JSON.stringify(classifications) : undefined
 
     useEffect(() => {
         const fetchSvgPreview = async () => {
@@ -69,7 +73,7 @@ export default function useLoadPreviewImage({ testCaseId, correctActivityIds, fa
         }
 
         fetchSvgPreview().then()
-    }, [testCaseId, correctActivityIds, falsePositiveIds, falseNegativeIds, classifications, resolvedTheme, imageClassName])
+    }, [testCaseId, correctActivityIdsKey, falsePositiveIdsKey, falseNegativeIdsKey, classificationsKey, resolvedTheme, imageClassName])
 
     return {
         previewImage,

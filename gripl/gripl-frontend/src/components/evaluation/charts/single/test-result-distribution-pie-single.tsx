@@ -22,10 +22,10 @@ export default function TestResultDistributionPieSingle({ item }: { item: ChartI
                     ].filter(entrie => entrie.value > 0);
 
                     return (
-                        <div key={promptLabel}>
-                            <ResponsiveContainer width="100%" height={300}>
+                        <div key={promptLabel} className="min-w-0">
+                            <ResponsiveContainer width="100%" height={300} minWidth={1} debounce={100}>
                                 <PieChart>
-                                    <Pie data={data} cx="50%" cy="50%" outerRadius={80} dataKey="value" labelLine={false}
+                                    <Pie data={data} cx="50%" cy="50%" outerRadius={80} dataKey="value" labelLine={false} isAnimationActive={false}
                                         label={({ name, value, percent }) => `${name}: ${value} (${((percent || 0) * 100).toFixed(0)}%)`}>
                                         {data.map((entrie, i) => <Cell key={i} fill={entrie.color} />)}
                                     </Pie>

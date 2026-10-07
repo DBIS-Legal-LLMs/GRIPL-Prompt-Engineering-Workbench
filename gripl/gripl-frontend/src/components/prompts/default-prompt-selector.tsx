@@ -132,8 +132,8 @@ export default function DefaultPromptSelector({ prompts, selectionOverview, onDe
                     onOpenChange={setIsPromptSelectOpen}
                     disabled={isSaving}>
 
-                    <SelectTrigger id="default-prompt" className="max-w-[200px] overflow-hidden">
-                        <SelectValue placeholder="Select default prompt" className="min-w-0 truncate"/>
+                    <SelectTrigger id="default-prompt">
+                        <SelectValue placeholder="Select default prompt" />
                     </SelectTrigger>
 
                     <SelectContent>

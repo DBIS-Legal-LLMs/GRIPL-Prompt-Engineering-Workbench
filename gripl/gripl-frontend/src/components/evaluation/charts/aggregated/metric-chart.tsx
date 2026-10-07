@@ -121,9 +121,9 @@ export default function MetricChart({ title, description, metricKey, stdKey, ite
         },
         legend: {
             show: true,
-            position: "right",
+            position: "bottom",
             horizontalAlign: "center",
-            offsetY: 70,
+            offsetY: 10,
         },
         tooltip: {
             enabled: true,

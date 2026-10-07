@@ -2,10 +2,10 @@ import React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from 'next-themes'
-import "@/style/globals.css";
-import "@/style/bpmn-js/bpmn-js.css";
-import "@/style/bpmn-js/font-bpmn.css";
-import "@/style/bpmn-js/diagram-js.css";
+import "../style/globals.css";
+import "../style/bpmn-js/bpmn-js.css";
+import "../style/bpmn-js/font-bpmn.css";
+import "../style/bpmn-js/diagram-js.css";
 import {SidebarInset, SidebarProvider, SidebarTrigger} from "@/components/ui/sidebar";
 import AppSidebar from "@/components/navigation/app-sidebar";
 import AppBreadCrumbs from "@/components/navigation/app-breadcrumbs";

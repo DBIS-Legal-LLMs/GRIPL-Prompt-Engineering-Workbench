@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import useLoadPreviewImage, { PreviewClassificationMap } from "@/hooks/use-load-preview-image";
 import type { TestCaseReport } from "@/models/dto/ReportData";
+import { useTheme } from "next-themes";
 import { useMemo } from "react";
 
 type PromptTestCaseReport = {
@@ -93,46 +94,53 @@ function createClassificationMap(reports: PromptTestCaseReport[]): PreviewClassi
     return classifications
 }
 
-const previewLegendItems = [
-    {
-        label: "True Positive (A and B)",
-        color: "#BEFFBE", // light green
-    },
-    {
-        label: "False Negative (A and B)",
-        color: "#FFBEBE", // light red
-    },
-    {
-        label: "True Positive (A), False Negative (B)",
-        color: "#BEDBFF", // light blue
-    },
-    {
-        label: "False Negative (A), True Positive (B)",
-        color: "#E1BEFF", // light purple
-    },
-    {
-        label: "False Positive (A and B)",
-        patternColor: "#991b1b", // dark red
-        backgroundColor: "#ffffff",
-    },
-    {
-        label: "True Negative (A and B)",
-        color: "#ffffff",
-    },
-    {
-        label: "False Positive (A), True Negative (B)",
-        patternColor: "#1d4ed8", // dark blue
-        backgroundColor: "#ffffff",
-    },
-    {
-        label: "True Negative (A), False Positive (B)",
-        patternColor: "#7e22ce", // dark purple
-        backgroundColor: "#ffffff",
-    },
-]
+function getPreviewLegendItems(isDark: boolean) {
+    return [
+        {
+            label: "True Positive (A and B)",
+            color: isDark ? "#2A6C2A" : "#BEFFBE", // green
+        },
+        {
+            label: "False Negative (A and B)",
+            color: isDark ? "#B73131" : "#FFBEBE", // red
+        },
+        {
+            label: "True Positive (A), False Negative (B)",
+            color: isDark ? "#4169A1" : "#BEDBFF", // blue
+        },
+        {
+            label: "False Negative (A), True Positive (B)",
+            color: isDark ? "#7B4FA3" : "#E1BEFF", // purple
+        },
+        {
+            label: "False Positive (A and B)",
+            patternColor: "#991b1b", // dark red
+            backgroundColor: isDark ? "hsl(215 28% 16%)" : "#ffffff",
+        },
+        {
+            label: "True Negative (A and B)",
+            color: isDark ? "hsl(215 28% 16%)" : "#ffffff", // card background
+        },
+        {
+            label: "False Positive (A), True Negative (B)",
+            patternColor: "#1d4ed8", // dark blue
+            backgroundColor: isDark ? "hsl(215 28% 16%)" : "#ffffff",
+        },
+        {
+            label: "True Negative (A), False Positive (B)",
+            patternColor: "#7e22ce", // dark purple
+            backgroundColor: isDark ? "hsl(215 28% 16%)" : "#ffffff",
+        },
+    ]
+}
 
 export default function TestCaseReportCardPreview({ reports }: TestCaseReportCardPreviewProps) {
     const primaryReport = reports[0].report
+    const { resolvedTheme } = useTheme()
+    const previewLegendItems = useMemo(
+        () => getPreviewLegendItems(resolvedTheme === "dark"),
+        [resolvedTheme]
+    )
     const classifications = useMemo(
         () => createClassificationMap(reports),
         [reports]
@@ -174,10 +182,10 @@ export default function TestCaseReportCardPreview({ reports }: TestCaseReportCar
                                     backgroundImage: item.patternColor
                                         ? `repeating-linear-gradient(
                                 -45deg,
-                                transparent,
+                                transparent 0,
                                 transparent 3px,
-                                ${item.patternColor} 3px,
-                                ${item.patternColor} 5px
+                                color-mix(in srgb, ${item.patternColor} 55%, transparent) 3px,
+                                color-mix(in srgb, ${item.patternColor} 55%, transparent) 5px
                             )`
                                         : undefined,
                                 }}

@@ -29,10 +29,12 @@ export default function TestCaseReportCardOverview({ reports }: TestCaseReportCa
             <div className="flex gap-4">
                 {reports.map(({ promptLabel, report }) => (
                     <Card key={`detected-${promptLabel}`} className="p-4 w-full">
-                        <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                            <ListChecks className="h-4 w-4" />
-                            Detected 
-                            <span className="text-xs font-normal text-muted-foreground">({promptLabel})</span>
+                        <div className="mb-2 text-sm font-semibold">
+                            <div className="flex items-center gap-2">
+                                <ListChecks className="h-4 w-4" />
+                                Detected
+                            </div>
+                            <span className="mt-1 block text-xs font-normal text-muted-foreground">({promptLabel})</span>
                         </div>
                         <p className="text-2xl font-bold">{report.actualNamesWithIds.length}</p>
                         <p className="text-xs text-muted-foreground">BPMN Elements</p>
@@ -43,10 +45,12 @@ export default function TestCaseReportCardOverview({ reports }: TestCaseReportCa
             <div className="flex gap-4">
                 {reports.map(({ promptLabel, report }) => (
                     <Card key={`correct-${promptLabel}`} className="p-4 w-full">
-                        <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                            <CheckCircle2 className="h-4 w-4" />
-                            Correct
-                            <span className="text-xs font-normal text-muted-foreground">({promptLabel})</span>
+                        <div className="mb-2 text-sm font-semibold">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Correct
+                            </div>
+                            <span className="mt-1 block text-xs font-normal text-muted-foreground">({promptLabel})</span>
                         </div>
 
                         <p className="text-2xl font-bold">{report.correctActivityIds?.length ?? 0}</p>
