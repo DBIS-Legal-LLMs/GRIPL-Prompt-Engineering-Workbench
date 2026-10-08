@@ -30,6 +30,13 @@ export default function TestCaseReportCard({ reports }: TestCaseReportCardProps)
     const areAllSuccessful = reports.every(
         ({ report }) => report.isSuccessful
     );
+    const hasRagMetrics = reports.some(
+        ({ report }) =>
+            report.ragMetrics?.faithfulness !== null &&
+            report.ragMetrics?.faithfulness !== undefined ||
+            report.ragMetrics?.contextUtilization !== null &&
+            report.ragMetrics?.contextUtilization !== undefined
+    );
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -97,6 +104,7 @@ export default function TestCaseReportCard({ reports }: TestCaseReportCardProps)
                         <Separator />
                         <TestCaseReportCardComparison reports={reports} />
                         <TestCaseReportCardPreview reports={reports} />
+                        {hasRagMetrics && <Separator />}
                         <RagMetricsCard
                             items={reports.map(({ promptLabel, report }) => ({
                                 label: promptLabel,

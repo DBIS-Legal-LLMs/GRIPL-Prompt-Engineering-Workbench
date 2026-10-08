@@ -56,7 +56,6 @@ export default function RagMetricsCard({ title = "RAG Metrics (Ragas)", items }:
 
     return (
         <>
-            <Separator />
             <Card>
                 <CardHeader>
                     <CardTitle>{title}</CardTitle>
@@ -70,7 +69,7 @@ export default function RagMetricsCard({ title = "RAG Metrics (Ragas)", items }:
                                 className="space-y-4"
                             >
                                 {item.label && (
-                                    <h3 className="text-center text-sm font-semibold">
+                                    <h3 className="text-left text-sm font-semibold">
                                         {item.label}
                                     </h3>
                                 )}
