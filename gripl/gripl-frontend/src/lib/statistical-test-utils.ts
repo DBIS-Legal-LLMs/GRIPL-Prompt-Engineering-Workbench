@@ -1,6 +1,7 @@
 import ttest from "@stdlib/stats-ttest";
 import padjust from "@stdlib/stats-padjust";
 import * as jerzy from "jerzy";
+import { pt } from "lib-r-math.js";
 import type { TestCaseReport } from "@/models/dto/ReportData";
 
 export const SIGNIFICANCE_LEVEL = 0.05;
@@ -22,12 +23,16 @@ export interface StatisticalTestResult {
     promptA: number | null;
     promptB: number | null;
     difference: number | null;
+    differenceStandardDeviation: number | null;
     shapiroResult: string;
     confidenceInterval: [number, number] | null;
     tValue: number | null;
     pValue: number | null;
     pValueCorrected: number | null;
     significant: boolean | null;
+    effectSize: number | null;
+    effectSizeConfidenceInterval: [number, number] | null;
+    effectSizeLabel: "Cohen's d_z" | "Hedges g_z" | null;
     n: number;
     df: number | null;
     warning?: string;
@@ -76,6 +81,58 @@ function average(values: number[]): number {
 }
 
 /**
+ * Calculates the sample standard deviation of a non-empty list of values.
+ */
+function sampleStandardDeviation(values: number[]): number {
+    const mean = average(values);
+    return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1));
+}
+
+/**
+ * Finds a noncentrality parameter whose noncentral t CDF matches a probability.
+ */
+function solveNoncentrality(tValue: number, degreesOfFreedom: number, probability: number): number {
+    let lower = -100;
+    let upper = 100;
+    for (let iteration = 0; iteration < 80; iteration += 1) {
+        const middle = (lower + upper) / 2;
+        if (pt(tValue, degreesOfFreedom, middle, true, false) > probability) {
+            lower = middle;
+        } else {
+            upper = middle;
+        }
+    }
+    return (lower + upper) / 2;
+}
+
+/**
+ * Calculates the paired effect size and its confidence interval.
+ */
+function calculateEffectSize(
+    differences: number[],
+    alpha: number,
+): Pick<StatisticalTestResult, "effectSize" | "effectSizeConfidenceInterval" | "effectSizeLabel"> {
+    const n = differences.length;
+    const degreesOfFreedom = n - 1;
+    const standardDeviation = sampleStandardDeviation(differences);
+    const dz = average(differences) / standardDeviation;
+    const tValue = dz * Math.sqrt(n);
+    const lowerNoncentrality = solveNoncentrality(tValue, degreesOfFreedom, 1 - alpha / 2);
+    const upperNoncentrality = solveNoncentrality(tValue, degreesOfFreedom, alpha / 2);
+    const correction = 1 - 3 / (4 * degreesOfFreedom - 1);
+    const useHedgesG = n < 30;
+    const multiplier = useHedgesG ? correction : 1;
+    return {
+        effectSize: multiplier * dz,
+        effectSizeConfidenceInterval: [
+            multiplier * lowerNoncentrality / Math.sqrt(n),
+            multiplier * upperNoncentrality / Math.sqrt(n),
+        ],
+        effectSizeLabel: useHedgesG ? "Hedges g_z" : "Cohen's d_z",
+    };
+}
+
+/**
  * Runs the normality check and paired t-test for one model/metric combination.
  * Constant differences are handled separately because their variance is zero
  * and a regular t-test is therefore undefined.
@@ -95,10 +152,10 @@ function calculateMetricTest(
 
     if (n < 3) {
         return {
-            modelLabel, metric, promptA: null, promptB: null, difference: null,
+            modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
             shapiroResult: "-",
             confidenceInterval: null, tValue: null, pValue: null, pValueCorrected: null,
-            significant: null, n, df: null,
+            significant: null, effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
             warning: "t-test not performed: At least three test cases are required.",
             warningScope: "model",
         };
@@ -108,10 +165,10 @@ function calculateMetricTest(
 
     if (isConstant) {
         return {
-            modelLabel, metric, promptA: null, promptB: null, difference: null,
+            modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
             shapiroResult: "Not applicable (constant differences)",
             confidenceInterval: null, tValue: null, pValue: null, pValueCorrected: null,
-            significant: null, n, df: null,
+            significant: null, effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
             warning: "Constant differences; t-test not performed because the variance is zero.",
             warningScope: "metric",
         };
@@ -123,23 +180,26 @@ function calculateMetricTest(
 
     if (!isNormal && n < 30) {
         return {
-            modelLabel, metric, promptA: null, promptB: null, difference: null,
+            modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
             shapiroResult, confidenceInterval: null, tValue: null,
-            pValue: null, pValueCorrected: null, significant: null, n, df: null,
+            pValue: null, pValueCorrected: null, significant: null, effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
             warning: "t-test not performed: normality assumption violated and n < 30.",
             warningScope: "metric",
         };
     }
 
     const test = ttest(promptAValues, promptBValues, { alpha, alternative: "two-sided" });
+    const effectSize = calculateEffectSize(differences, alpha);
     return {
         modelLabel, metric, promptA, promptB, difference,
+        differenceStandardDeviation: sampleStandardDeviation(differences),
         shapiroResult,
         confidenceInterval: [test.ci[0], test.ci[1]],
         tValue: test.statistic,
         pValue: test.pValue,
         pValueCorrected: null,
         significant: false,
+        ...effectSize,
         n, df: test.df,
         warning: !isNormal ? "Normality assumption violated; interpret with caution (n >= 30)." : undefined,
         warningScope: !isNormal ? "metric" : undefined,
