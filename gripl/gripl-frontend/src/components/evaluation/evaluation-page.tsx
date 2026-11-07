@@ -80,6 +80,7 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
     const [selectedDataset, setSelectedDataset] = useState<string | undefined>(undefined);
 
     const [isMetricsSummaryOpen, setIsMetricsSummaryOpen] = useState<boolean>(false);
+    const [currentSingleReport, setCurrentSingleReport] = useState<File | null>(null);
 
     const { colors, setColors } = useColors()
     const { showToast, showError } = useToast()
@@ -167,6 +168,7 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
         setIsLoading(true);
         setIsFinished(false);
         setSelectedRun(1);
+        setCurrentSingleReport(null);
     };
 
     function hasCompleteEvaluationConfiguration(request: MultiEvaluationRequest): boolean {
@@ -562,17 +564,13 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
         URL.revokeObjectURL(url);
     };
 
-    const handleDownloadJsonReport = () => {
-        const hasSummaries = summaryByRun.size > 0;
-        if (testCasesByRun.size === 0 && !hasSummaries) {
-            showToast({ title: "No results yet", description: "Run an evaluation before downloading a report.", variant: "info" });
-            return;
-        }
+    const buildJsonReport = (promptLabel?: string) => {
+        const includesPrompt = (report: ReportContext) =>
+            promptLabel === undefined || getPromptKey(report.promptInfo) === promptLabel;
 
-        // Convert Maps to serializable format
-        const testCasesByRunObj: Record<number, any[]> = {};
+        const testCasesByRunObj: Record<number, TestCaseResult[]> = {};
         for (const [runNum, cases] of testCasesByRun.entries()) {
-            testCasesByRunObj[runNum] = cases;
+            testCasesByRunObj[runNum] = promptLabel === undefined ? cases : cases.filter(includesPrompt);
         }
 
         const summariesByRunObj: Record<number, any[]> = {};
@@ -580,106 +578,358 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
             summariesByRunObj[runNum] = Array.from(runSummaries.entries()).map(
                 ([modelLabel, promptSummaries]) => ({
                     modelLabel,
-                    prompts: Array.from(promptSummaries.entries()).map(
-                        ([promptLabel, summary]) => ({
-                            promptLabel,
-                            summary
-                        })
-                    )
-                }));
+                    prompts: Array.from(promptSummaries.entries())
+                        .filter(([currentPromptLabel]) => promptLabel === undefined || currentPromptLabel === promptLabel)
+                        .map(([currentPromptLabel, summary]) => ({ promptLabel: currentPromptLabel, summary }))
+                })
+            ).filter((entry) => entry.prompts.length > 0);
         }
 
-        const errorsByRunObj: Record<number, any[]> = {};
+        const errorsByRunObj: Record<number, ErrorResult[]> = {};
         for (const [runNum, errs] of errorsByRun.entries()) {
-            errorsByRunObj[runNum] = errs;
+            errorsByRunObj[runNum] = promptLabel === undefined ? errs : errs.filter(includesPrompt);
         }
 
-        const report = {
-            metadata,
+        let reportAggregateStats = aggregateStats;
+        if (promptLabel !== undefined && aggregateStats) {
+            reportAggregateStats = {};
+            for (const [modelLabel, promptMetrics] of Object.entries(aggregateStats)) {
+                const metrics = promptMetrics[promptLabel];
+                if (metrics) reportAggregateStats[modelLabel] = { [promptLabel]: metrics };
+            }
+        }
+
+        return {
+            metadata: metadata
+                ? {
+                    ...metadata,
+                    prompts: promptLabel === undefined
+                        ? metadata.prompts ?? []
+                        : (metadata.prompts ?? []).filter((prompt) => getPromptKey(prompt) === promptLabel),
+                }
+                : null,
             testCasesByRun: testCasesByRunObj,
             summariesByRun: summariesByRunObj,
             errorsByRun: errorsByRunObj,
-            aggregateStats: aggregateStats || null,
-            colors: colors
+            aggregateStats: reportAggregateStats || null,
+            colors,
         };
+    };
 
+    const triggerJsonDownload = (report: unknown, filename: string) => {
         const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "evaluation_report_multi.json";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
         URL.revokeObjectURL(url);
-    }
+    };
 
-    const handleUploadJsonReport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitizeFilenamePart = (value: string) =>
+        value.trim().replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").replace(/\s+/g, "_").slice(0, 80) || "prompt";
+
+    const getCurrentPromptLabels = () => {
+        const labels = new Set<string>();
+        metadata?.prompts?.forEach((prompt) => labels.add(getPromptKey(prompt)));
+        for (const reports of testCasesByRun.values()) reports.forEach((report) => labels.add(getPromptKey(report.promptInfo)));
+        for (const reports of errorsByRun.values()) reports.forEach((report) => labels.add(getPromptKey(report.promptInfo)));
+        for (const runSummaries of summaryByRun.values()) {
+            for (const promptSummaries of runSummaries.values()) promptSummaries.forEach((_, label) => labels.add(label));
+        }
+        return Array.from(labels);
+    };
+
+    const handleDownloadJsonReport = () => {
+        const hasSummaries = summaryByRun.size > 0;
+        if (testCasesByRun.size === 0 && !hasSummaries) {
+            showToast({ title: "No results yet", description: "Run an evaluation before downloading a report.", variant: "info" });
+            return;
+        }
+
+        const promptLabels = getCurrentPromptLabels();
+        if (promptLabels.length <= 1) {
+            triggerJsonDownload(buildJsonReport(), "evaluation_report_multi.json");
+            return;
+        }
+
+        promptLabels.forEach((promptLabel, index) => {
+            const promptPosition = index === 0 ? "a" : "b";
+            triggerJsonDownload(
+                buildJsonReport(promptLabel),
+                `evaluation_report_prompt_${promptPosition}_${sanitizeFilenamePart(promptLabel)}.json`
+            );
+        });
+    };
+
+    const handleDownloadCombinedJsonReport = () => {
+        const hasSummaries = summaryByRun.size > 0;
+        if (testCasesByRun.size === 0 && !hasSummaries) {
+            showToast({ title: "No results yet", description: "Run an evaluation before downloading a report.", variant: "info" });
+            return;
+        }
+
+        triggerJsonDownload(buildJsonReport(), "evaluation_report_multi.json");
+    };
+
+    const readJsonReport = async (file: File): Promise<any> => JSON.parse(await file.text());
+
+    const getPromptLabelsFromReport = (report: any): string[] => {
+        const labels = new Set<string>();
+        const hasExplicitPromptLabel = report.metadata?.prompts?.some(
+            (prompt: PromptInfo) => getPromptKey(prompt) !== "Unknown"
+        ) ?? false;
+        report.metadata?.prompts?.forEach((prompt: PromptInfo) => labels.add(getPromptKey(prompt)));
+        Object.values(report.testCasesByRun ?? {}).flat().forEach((testCase: any) => {
+            const label = getPromptKey(testCase.promptInfo ?? null);
+            if (label !== "Unknown" || !hasExplicitPromptLabel) labels.add(label);
+        });
+        Object.values(report.errorsByRun ?? {}).flat().forEach((error: any) => {
+            const label = getPromptKey(error.promptInfo ?? null);
+            if (label !== "Unknown" || !hasExplicitPromptLabel) labels.add(label);
+        });
+        Object.values(report.summariesByRun ?? {}).flat().forEach((entry: any) => {
+            if (Array.isArray(entry.prompts)) {
+                entry.prompts.forEach((prompt: any) => {
+                    const label = prompt.promptLabel ?? "Unknown";
+                    if (label !== "Unknown" || !hasExplicitPromptLabel) labels.add(label);
+                });
+            }
+        });
+        return labels.size > 0 ? Array.from(labels) : ["Unknown"];
+    };
+
+    const parseReportState = (report: any) => {
+        const promptLabels = getPromptLabelsFromReport(report);
+        const promptLabel = promptLabels.length === 1 ? promptLabels[0] : undefined;
+        const promptInfo = report.metadata?.prompts?.find(
+            (prompt: PromptInfo) => getPromptKey(prompt) === promptLabel
+        ) ?? (promptLabel && promptLabel !== "Unknown"
+            ? { promptLabel, promptName: null, versionNumber: null, classificationScope: null, isOverride: false }
+            : null);
+
+        const addPromptInfo = <T extends { promptInfo?: PromptInfo | null }>(item: T): T => {
+            if (!promptInfo || item.promptInfo && getPromptKey(item.promptInfo) !== "Unknown") return item;
+            return { ...item, promptInfo };
+        };
+
+        const testCasesByRun = new Map<number, TestCaseResult[]>();
+        for (const [runNum, cases] of Object.entries(report.testCasesByRun ?? {})) {
+            testCasesByRun.set(Number(runNum), (cases as TestCaseResult[]).map(addPromptInfo));
+        }
+
+        const summaryByRun: RunSummaryMap = new Map();
+        for (const [runNum, rawSummaries] of Object.entries(report.summariesByRun ?? {})) {
+            const runSummaryMap: ModelSummaryMap = new Map();
+            for (const entry of rawSummaries as any[]) {
+                if (Array.isArray(entry.prompts)) {
+                    runSummaryMap.set(
+                        entry.modelLabel,
+                        new Map(entry.prompts.map(({ promptLabel: currentPromptLabel, summary }: { promptLabel: string; summary: EvaluationReportSummary }) => [currentPromptLabel, summary]))
+                    );
+                } else {
+                    runSummaryMap.set(entry.label, new Map([[promptLabel ?? "Unknown", entry.summary as EvaluationReportSummary]]));
+                }
+            }
+            summaryByRun.set(Number(runNum), runSummaryMap);
+        }
+
+        const errorsByRun = new Map<number, ErrorResult[]>();
+        for (const [runNum, errors] of Object.entries(report.errorsByRun ?? {})) {
+            errorsByRun.set(Number(runNum), (errors as ErrorResult[]).map(addPromptInfo));
+        }
+
+        return { metadata: report.metadata ?? null, testCasesByRun, summaryByRun, errorsByRun, colors: report.colors, promptLabels };
+    };
+
+    const getReportModelLabels = (report: ReturnType<typeof parseReportState>) => {
+        const labels = new Set(report.metadata?.modelLabels ?? []);
+        for (const cases of report.testCasesByRun.values()) cases.forEach((testCase) => labels.add(testCase.modelLabel));
+        for (const errors of report.errorsByRun.values()) errors.forEach((error) => labels.add(error.modelLabel));
+        for (const summaries of report.summaryByRun.values()) summaries.forEach((_, modelLabel) => labels.add(modelLabel));
+        return Array.from(labels).sort();
+    };
+
+    const getReportDatasetIds = (report: ReturnType<typeof parseReportState>) => {
+        const ids = new Set<number>();
+        const datasets = report.metadata?.datasets as Array<{ id: number; name: string }> | undefined;
+        datasets?.forEach((dataset) => ids.add(dataset.id));
+        for (const cases of report.testCasesByRun.values()) cases.forEach((testCase) => ids.add(testCase.datasetId));
+        for (const errors of report.errorsByRun.values()) errors.forEach((error) => {
+            if (error.datasetId !== undefined) ids.add(error.datasetId);
+        });
+        return Array.from(ids).sort((first, second) => first - second);
+    };
+
+    const getReportRunNumbers = (report: ReturnType<typeof parseReportState>) => Array.from(new Set([
+        ...report.testCasesByRun.keys(), ...report.summaryByRun.keys(), ...report.errorsByRun.keys()
+    ])).sort((first, second) => first - second);
+
+    const getReportCoverage = (report: ReturnType<typeof parseReportState>) => {
+        const coverage = new Set<string>();
+        for (const [runNumber, cases] of report.testCasesByRun.entries()) {
+            cases.forEach((testCase) => coverage.add(`${runNumber}|${testCase.modelLabel}|${testCase.testCaseId}`));
+        }
+        for (const [runNumber, errors] of report.errorsByRun.entries()) {
+            errors.forEach((error) => coverage.add(`${runNumber}|${error.modelLabel}|${error.testCaseId}`));
+        }
+        return Array.from(coverage).sort();
+    };
+
+    const hasDetailedModelConfiguration = (report: ReturnType<typeof parseReportState>) => {
+        const metadata = report.metadata;
+        return Boolean(
+            metadata && Array.isArray(metadata.modelTemperatures) && Array.isArray(metadata.modelTopPs) &&
+            metadata.modelTemperatures.length === metadata.modelLabels.length && metadata.modelTopPs.length === metadata.modelLabels.length
+        );
+    };
+
+    const getModelConfiguration = (report: ReturnType<typeof parseReportState>) => {
+        const metadata = report.metadata;
+        const modelLabels = metadata!.modelLabels as string[];
+        const modelTemperatures = metadata!.modelTemperatures as Array<number | undefined>;
+        const modelTopPs = metadata!.modelTopPs as Array<number | undefined>;
+        return modelLabels
+            .map((label, index) => `${label}|${modelTemperatures[index] ?? "default"}|${modelTopPs[index] ?? "default"}`)
+            .sort();
+    };
+
+    const getCompatibilityError = (first: ReturnType<typeof parseReportState>, second: ReturnType<typeof parseReportState>): string | null => {
+        if (first.promptLabels.length !== 1 || second.promptLabels.length !== 1) return "Each uploaded report must contain exactly one prompt.";
+        if (first.promptLabels[0] === second.promptLabels[0]) return "The uploaded reports must contain different prompts.";
+        if (JSON.stringify(getReportModelLabels(first)) !== JSON.stringify(getReportModelLabels(second))) return "The reports use different models.";
+        if (hasDetailedModelConfiguration(first) && hasDetailedModelConfiguration(second) &&
+            JSON.stringify(getModelConfiguration(first)) !== JSON.stringify(getModelConfiguration(second))) {
+            return "The reports use different model configurations.";
+        }
+        if (JSON.stringify(getReportDatasetIds(first)) !== JSON.stringify(getReportDatasetIds(second))) return "The reports use different datasets.";
+        if (JSON.stringify(getReportRunNumbers(first)) !== JSON.stringify(getReportRunNumbers(second))) return "The reports contain different evaluation runs.";
+        if (JSON.stringify(getReportCoverage(first)) !== JSON.stringify(getReportCoverage(second))) return "The reports contain different test cases or result coverage.";
+
+        const firstRepetitions = first.metadata?.totalRepetitions ?? Math.max(...getReportRunNumbers(first), 1);
+        const secondRepetitions = second.metadata?.totalRepetitions ?? Math.max(...getReportRunNumbers(second), 1);
+        if (firstRepetitions !== secondRepetitions) return "The reports use different numbers of repetitions.";
+        if (first.metadata?.totalTestCases !== undefined && second.metadata?.totalTestCases !== undefined && first.metadata.totalTestCases !== second.metadata.totalTestCases) {
+            return "The reports contain different numbers of test cases.";
+        }
+        return null;
+    };
+
+    const mergeReportStates = (first: ReturnType<typeof parseReportState>, second: ReturnType<typeof parseReportState>): ReturnType<typeof parseReportState> => {
+        const mergedTestCasesByRun = new Map<number, TestCaseResult[]>();
+        const mergedSummaryByRun: RunSummaryMap = new Map();
+        const mergedErrorsByRun = new Map<number, ErrorResult[]>();
+        const runNumbers = new Set([
+            ...first.testCasesByRun.keys(), ...second.testCasesByRun.keys(),
+            ...first.summaryByRun.keys(), ...second.summaryByRun.keys(),
+            ...first.errorsByRun.keys(), ...second.errorsByRun.keys(),
+        ]);
+
+        for (const runNumber of runNumbers) {
+            mergedTestCasesByRun.set(runNumber, [...(first.testCasesByRun.get(runNumber) ?? []), ...(second.testCasesByRun.get(runNumber) ?? [])]);
+            mergedErrorsByRun.set(runNumber, [...(first.errorsByRun.get(runNumber) ?? []), ...(second.errorsByRun.get(runNumber) ?? [])]);
+            const mergedModelSummaries: ModelSummaryMap = new Map();
+            for (const source of [first.summaryByRun.get(runNumber), second.summaryByRun.get(runNumber)]) {
+                source?.forEach((promptSummaries, modelLabel) => {
+                    const current = mergedModelSummaries.get(modelLabel) ?? new Map<string, EvaluationReportSummary>();
+                    promptSummaries.forEach((summary, promptLabel) => current.set(promptLabel, summary));
+                    mergedModelSummaries.set(modelLabel, current);
+                });
+            }
+            mergedSummaryByRun.set(runNumber, mergedModelSummaries);
+        }
+
+        const firstMetadata = first.metadata ?? second.metadata;
+        const mergedMetadata = firstMetadata
+            ? { ...firstMetadata, prompts: [...(first.metadata?.prompts ?? []), ...(second.metadata?.prompts ?? [])] }
+            : null;
+        return {
+            metadata: mergedMetadata,
+            testCasesByRun: mergedTestCasesByRun,
+            summaryByRun: mergedSummaryByRun,
+            errorsByRun: mergedErrorsByRun,
+            colors: first.colors ?? second.colors,
+            promptLabels: [...first.promptLabels, ...second.promptLabels],
+        };
+    };
+
+    const applyReportState = (state: ReturnType<typeof parseReportState>) => {
+        setMetadata(state.metadata);
+        setTestCasesByRun(state.testCasesByRun);
+        setSummaryByRun(state.summaryByRun);
+        setErrorsByRun(state.errorsByRun);
+        if (state.colors) setColors(state.colors);
+        setSelectedRun(1);
+        setSelectedModel(undefined);
+        setSelectedDataset(undefined);
+        setIsFinished(true);
+    };
+
+    const applyUploadedReportFiles = async (files: File[]): Promise<ReturnType<typeof parseReportState> | null> => {
+        try {
+            const states = (await Promise.all(files.map(readJsonReport))).map(parseReportState);
+            if (states.length === 1) {
+                const state = states[0];
+                if (!state) {
+                    showError("Failed to load report", "Select one or two JSON reports.");
+                    return null;
+                }
+                applyReportState(state);
+                return state;
+            }
+
+            const firstState = states[0];
+            const secondState = states[1];
+            if (!firstState || !secondState) {
+                showError("Failed to load report", "Select one or two JSON reports.");
+                return null;
+            }
+
+            const compatibilityError = getCompatibilityError(firstState, secondState);
+            if (compatibilityError) {
+                showError("Reports are incompatible", compatibilityError);
+                return null;
+            }
+            const mergedState = mergeReportStates(firstState, secondState);
+            applyReportState(mergedState);
+            return mergedState;
+        } catch (err) {
+            console.error("Failed to load report:", err);
+            showError("Failed to load report", toErrorMessage(err));
+            return null;
+        }
+    };
+
+    const handleUploadJsonReport = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
+        event.target.value = "";
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const text = e.target?.result;
-                if (typeof text !== "string") throw new Error("File content is not a string");
+        const state = await applyUploadedReportFiles([file]);
+        if (state) {
+            setCurrentSingleReport(state.promptLabels.length === 1 ? file : null);
+        }
+    };
 
-                const parsed = JSON.parse(text);
+    const handleUploadAnotherJsonReport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file || !currentSingleReport) return;
 
-                setMetadata(parsed.metadata || null);
-
-                const tcMap = new Map<number, TestCaseResult[]>();
-                for (const [runNum, cases] of Object.entries(parsed.testCasesByRun ?? {})) {
-                    tcMap.set(Number(runNum), cases as TestCaseResult[]);
-                }
-                setTestCasesByRun(tcMap);
-
-                const summaryMap: RunSummaryMap = new Map();
-                for (const [runNum, rawSummaries] of Object.entries(parsed.summariesByRun ?? {})) {
-                    const runSummaryMap: ModelSummaryMap = new Map();
-
-                    for (const entry of rawSummaries as any[]) {
-                        // New format with prompts array: { modelLabel, prompts: [{ promptLabel, summary }] }
-                        if (Array.isArray(entry.prompts)) {
-                            runSummaryMap.set(
-                                entry.modelLabel,
-                                new Map(
-                                    entry.prompts.map(({ promptLabel, summary }: { promptLabel: string; summary: EvaluationReportSummary }) => [promptLabel, summary])
-                                )
-                            );
-                            continue;
-                        }
-
-                        // Old format: { label, summary }
-                        runSummaryMap.set(
-                            entry.label,
-                            new Map([["Unknown", entry.summary as EvaluationReportSummary]])
-                        );
-                    }
-                    summaryMap.set(Number(runNum), runSummaryMap);
-                }
-                setSummaryByRun(summaryMap);
-
-                const errorsMap = new Map<number, ErrorResult[]>();
-                for (const [runNum, errs] of Object.entries(parsed.errorsByRun ?? {})) {
-                    errorsMap.set(Number(runNum), errs as ErrorResult[]);
-                }
-                setErrorsByRun(errorsMap);
-
-                if (parsed.colors) {
-                    setColors(parsed.colors);
-                }
-            } catch (err) {
-                console.error("Failed to load report:", err);
-                showError("Failed to load report", toErrorMessage(err));
-            }
-        };
-        reader.readAsText(file);
-        setIsFinished(true);
+        const state = await applyUploadedReportFiles([currentSingleReport, file]);
+        if (state) {
+            setCurrentSingleReport(null);
+        }
     };
 
     const onUploadJsonReportClick = () => {
         document.getElementById("upload-json-report")?.click()
+    };
+
+    const onUploadAnotherJsonReportClick = () => {
+        document.getElementById("upload-another-json-report")?.click();
     };
 
     const summariesByModel = useMemo(
@@ -784,14 +1034,27 @@ export default function EvaluationPage({ datasets, prompts, onPromptCreated }: E
                         </Button>
                         <Button variant="secondary" disabled={!isFinished} onClick={handleDownloadJsonReport}>
                             <FileText className="h-4 w-4" />
-                            Download JSON Report
+                            Download JSON Report{getCurrentPromptLabels().length > 1 ? "s" : ""}
+                        </Button>
+                        <Button variant="secondary" disabled={!isFinished} onClick={handleDownloadCombinedJsonReport}>
+                            <FileText className="h-4 w-4" />
+                            Download Combined JSON Report
                         </Button>
                         <input id="upload-json-report" type="file" accept=".json" className="hidden" onChange={handleUploadJsonReport} />
+                        <input id="upload-another-json-report" type="file" accept=".json" className="hidden" onChange={handleUploadAnotherJsonReport} />
                         <label htmlFor="upload-json-report">
                             <Button variant="secondary" onClick={onUploadJsonReportClick} disabled={isLoading} className="hover:cursor-pointer">
                                 <span className="flex flex-row items-center gap-2">
                                     <FileText className="h-4 w-4" />
                                     Upload JSON Report
+                                </span>
+                            </Button>
+                        </label>
+                        <label htmlFor="upload-another-json-report">
+                            <Button variant="secondary" onClick={onUploadAnotherJsonReportClick} disabled={isLoading || !currentSingleReport} className="hover:cursor-pointer">
+                                <span className="flex flex-row items-center gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    Upload another JSON Report
                                 </span>
                             </Button>
                         </label>
