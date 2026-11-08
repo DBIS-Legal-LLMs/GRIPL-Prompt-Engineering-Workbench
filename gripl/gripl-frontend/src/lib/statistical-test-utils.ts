@@ -1,5 +1,4 @@
 import ttest from "@stdlib/stats-ttest";
-import padjust from "@stdlib/stats-padjust";
 import * as jerzy from "jerzy";
 import { pt } from "lib-r-math.js";
 import type { TestCaseReport } from "@/models/dto/ReportData";
@@ -28,8 +27,6 @@ export interface StatisticalTestResult {
     confidenceInterval: [number, number] | null;
     tValue: number | null;
     pValue: number | null;
-    pValueCorrected: number | null;
-    significant: boolean | null;
     effectSize: number | null;
     effectSizeConfidenceInterval: [number, number] | null;
     effectSizeLabel: "Cohen's d_z" | "Hedges g_z" | null;
@@ -145,7 +142,7 @@ function calculateMetricTest(
     alpha: number
 ): StatisticalTestResult {
     const n = promptAValues.length;
-    const differences = promptAValues.map((value, index) => value - promptBValues[index]);
+    const differences = promptBValues.map((value, index) => value - promptAValues[index]);
     const promptA = average(promptAValues);
     const promptB = average(promptBValues);
     const difference = average(differences);
@@ -154,8 +151,8 @@ function calculateMetricTest(
         return {
             modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
             shapiroResult: "-",
-            confidenceInterval: null, tValue: null, pValue: null, pValueCorrected: null,
-            significant: null, effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
+            confidenceInterval: null, tValue: null, pValue: null,
+            effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
             warning: "t-test not performed: At least three test cases are required.",
             warningScope: "model",
         };
@@ -167,8 +164,8 @@ function calculateMetricTest(
         return {
             modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
             shapiroResult: "Not applicable (constant differences)",
-            confidenceInterval: null, tValue: null, pValue: null, pValueCorrected: null,
-            significant: null, effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
+            confidenceInterval: null, tValue: null, pValue: null,
+            effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
             warning: "Constant differences; t-test not performed because the variance is zero.",
             warningScope: "metric",
         };
@@ -182,13 +179,13 @@ function calculateMetricTest(
         return {
             modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
             shapiroResult, confidenceInterval: null, tValue: null,
-            pValue: null, pValueCorrected: null, significant: null, effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
+            pValue: null, effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
             warning: "t-test not performed: normality assumption violated and n < 30.",
             warningScope: "metric",
         };
     }
 
-    const test = ttest(promptAValues, promptBValues, { alpha, alternative: "two-sided" });
+    const test = ttest(promptBValues, promptAValues, { alpha, alternative: "two-sided" });
     const effectSize = calculateEffectSize(differences, alpha);
     return {
         modelLabel, metric, promptA, promptB, difference,
@@ -197,8 +194,6 @@ function calculateMetricTest(
         confidenceInterval: [test.ci[0], test.ci[1]],
         tValue: test.statistic,
         pValue: test.pValue,
-        pValueCorrected: null,
-        significant: false,
         ...effectSize,
         n, df: test.df,
         warning: !isNormal ? "Normality assumption violated; interpret with caution (n >= 30)." : undefined,
@@ -208,7 +203,7 @@ function calculateMetricTest(
 
 /**
  * Builds paired test-case metrics, excludes incomplete/error pairs, and runs
- * the three metric tests with Holm correction separately for each model.
+ * the three metric tests.
  */
 export function calculateStatisticalTests(
     testCasesByRun: Map<number, ReportWithContext[]>,
@@ -292,20 +287,6 @@ export function calculateStatisticalTests(
             alpha
         ));
 
-        const correctableTests = tests.filter((test) => test.pValue !== null);
-        const correctedPValues = correctableTests.length > 0
-            ? padjust(correctableTests.map((test) => test.pValue as number), "holm", 3)
-            : [];
-        let correctedIndex = 0;
-
-        return tests.map((test) => {
-            if (test.pValue === null) return test;
-            const pValueCorrected = correctedPValues[correctedIndex++];
-            return {
-                ...test,
-                pValueCorrected,
-                significant: pValueCorrected < alpha,
-            };
-        });
+        return tests;
     });
 }
