@@ -20,7 +20,9 @@ export interface StatisticalTestResult {
     modelLabel: string;
     metric: "Precision" | "Recall" | "F1";
     promptA: number | null;
+    promptAStandardDeviation: number | null;
     promptB: number | null;
+    promptBStandardDeviation: number | null;
     difference: number | null;
     differenceStandardDeviation: number | null;
     shapiroResult: string;
@@ -149,7 +151,8 @@ function calculateMetricTest(
 
     if (n < 3) {
         return {
-            modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
+            modelLabel, metric, promptA: null, promptAStandardDeviation: null, promptB: null, promptBStandardDeviation: null,
+            difference: null, differenceStandardDeviation: null,
             shapiroResult: "-",
             confidenceInterval: null, tValue: null, pValue: null,
             effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
@@ -162,7 +165,8 @@ function calculateMetricTest(
 
     if (isConstant) {
         return {
-            modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
+            modelLabel, metric, promptA: null, promptAStandardDeviation: null, promptB: null, promptBStandardDeviation: null,
+            difference: null, differenceStandardDeviation: null,
             shapiroResult: "Not applicable (constant differences)",
             confidenceInterval: null, tValue: null, pValue: null,
             effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
@@ -177,7 +181,8 @@ function calculateMetricTest(
 
     if (!isNormal && n < 30) {
         return {
-            modelLabel, metric, promptA: null, promptB: null, difference: null, differenceStandardDeviation: null,
+            modelLabel, metric, promptA: null, promptAStandardDeviation: null, promptB: null, promptBStandardDeviation: null,
+            difference: null, differenceStandardDeviation: null,
             shapiroResult, confidenceInterval: null, tValue: null,
             pValue: null, effectSize: null, effectSizeConfidenceInterval: null, effectSizeLabel: null, n, df: null,
             warning: "t-test not performed: normality assumption violated and n < 30.",
@@ -188,7 +193,13 @@ function calculateMetricTest(
     const test = ttest(promptBValues, promptAValues, { alpha, alternative: "two-sided" });
     const effectSize = calculateEffectSize(differences, alpha);
     return {
-        modelLabel, metric, promptA, promptB, difference,
+        modelLabel,
+        metric,
+        promptA,
+        promptAStandardDeviation: sampleStandardDeviation(promptAValues),
+        promptB,
+        promptBStandardDeviation: sampleStandardDeviation(promptBValues),
+        difference,
         differenceStandardDeviation: sampleStandardDeviation(differences),
         shapiroResult,
         confidenceInterval: [test.ci[0], test.ci[1]],

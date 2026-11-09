@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import type { StatisticalTestResult } from "@/lib/statistical-test-utils";
 import { Fragment } from "react";
 import ChartMenu from "@/components/evaluation/charts/common/chart-menu";
-import { createLatexTable, downloadLatexTable, escapeLatex, formatLatexMathNumber } from "@/lib/latex-export";
+import { createLatexTable, downloadLatexTable, escapeLatex, formatLatexMathNumber, formatLatexNumber } from "@/lib/latex-export";
 
 interface StatisticalTestResultsProps {
     results: StatisticalTestResult[];
@@ -14,6 +14,16 @@ interface StatisticalTestResultsProps {
 
 function format(value: number | null, digits = 3): string {
     return value === null || !Number.isFinite(value) ? "-" : value.toFixed(digits);
+}
+
+function formatMeanStandardDeviation(mean: number | null, standardDeviation: number | null): string {
+    if (mean === null || standardDeviation === null) return "-";
+    return `${format(mean)} ± ${format(standardDeviation)}`;
+}
+
+function formatLatexMeanStandardDeviation(mean: number | null, standardDeviation: number | null): string {
+    if (mean === null || standardDeviation === null) return formatLatexMathNumber(undefined);
+    return `$${formatLatexNumber(mean)} \\pm ${formatLatexNumber(standardDeviation)}$`;
 }
 
 function renderEffectSizeLabel(label: string) {
@@ -34,17 +44,21 @@ export default function StatisticalTestResults({ results, alpha, promptLabels }:
 
     const handleDownloadLatex = () => {
         const labels = [promptLabels[0] ?? "Prompt A", promptLabels[1] ?? "Prompt B"];
-        const promptCaption = `Prompt A: ${labels[0]}; Prompt B: ${labels[1]}`;
+        const promptCaption = `Macro-averaged metrics; Prompt A: ${labels[0]}; Prompt B: ${labels[1]}`;
+        const degreesOfFreedom = modelLabels.map((modelLabel) => {
+            const modelResult = results.find((result) => result.modelLabel === modelLabel);
+            return `${modelLabel}: df=${modelResult?.df ?? "-"}`;
+        }).join("; ");
+        const pairedTestCaption = `Paired test statistics (${degreesOfFreedom}; alpha=${alpha})`;
         const descriptiveRows = modelLabels.flatMap((modelLabel) => results
             .filter((result) => result.modelLabel === modelLabel)
             .map((result) => [
                 escapeLatex(result.modelLabel),
                 escapeLatex(result.metric),
                 escapeLatex(result.shapiroResult),
-                formatLatexMathNumber(result.promptA),
-                formatLatexMathNumber(result.promptB),
-                formatLatexMathNumber(result.difference),
-                formatLatexMathNumber(result.differenceStandardDeviation),
+                formatLatexMeanStandardDeviation(result.promptA, result.promptAStandardDeviation),
+                formatLatexMeanStandardDeviation(result.promptB, result.promptBStandardDeviation),
+                formatLatexMeanStandardDeviation(result.difference, result.differenceStandardDeviation),
             ].join(" & ")));
         const pairedTestRows = modelLabels.flatMap((modelLabel) => results
             .filter((result) => result.modelLabel === modelLabel)
@@ -56,7 +70,7 @@ export default function StatisticalTestResults({ results, alpha, promptLabels }:
                     ? `$[${formatLatexMathNumber(result.confidenceInterval[0]).slice(1, -1)}, ${formatLatexMathNumber(result.confidenceInterval[1]).slice(1, -1)}]$`
                     : formatLatexMathNumber(undefined),
                 formatLatexMathNumber(result.tValue),
-                formatLatexMathNumber(result.df),
+                formatLatexMathNumber(result.pValue),
             ].join(" & ")));
         const effectSizeRows = modelLabels.flatMap((modelLabel) => results
             .filter((result) => result.modelLabel === modelLabel)
@@ -67,7 +81,6 @@ export default function StatisticalTestResults({ results, alpha, promptLabels }:
                     ? `$[${formatLatexMathNumber(result.effectSizeConfidenceInterval[0]).slice(1, -1)}, ${formatLatexMathNumber(result.effectSizeConfidenceInterval[1]).slice(1, -1)}]$`
                     : formatLatexMathNumber(undefined),
                 formatLatexMathNumber(result.effectSize),
-                formatLatexMathNumber(result.pValue),
             ].join(" & ")));
 
         const tables = [
@@ -76,15 +89,15 @@ export default function StatisticalTestResults({ results, alpha, promptLabels }:
                 "tab:statistical-descriptive",
                 `
         >{\\hsize=1.25\\hsize\\raggedright\\arraybackslash}X
-        >{\\hsize=1.0\\hsize\\raggedright\\arraybackslash}X
-        >{\\hsize=1.75\\hsize\\centering\\arraybackslash}X
-        *{4}{>{\\hsize=0.75\\hsize\\centering\\arraybackslash}X}
+        >{\\hsize=0.8\\hsize\\raggedright\\arraybackslash}X
+        >{\\hsize=1.55\\hsize\\centering\\arraybackslash}X
+        *{3}{>{\\hsize=0.8\\hsize\\centering\\arraybackslash}X}
     `,
-            "Model & Metric & Shapiro-Wilk & $\\overline{x}_{A}$ & $\\overline{x}_{B}$ & $\\overline{d}$ & $s_D$",
+            "Model & Metric & Shapiro-Wilk & A (Mean $\\pm$ SD) & B (Mean $\\pm$ SD) & Difference (Mean $\\pm$ SD)",
                 descriptiveRows,
             ),
             createLatexTable(
-                "Paired test statistics",
+                pairedTestCaption,
                 "tab:statistical-test-statistics",
                 `
         >{\\hsize=1.25\\hsize\\raggedright\\arraybackslash}X
@@ -94,20 +107,17 @@ export default function StatisticalTestResults({ results, alpha, promptLabels }:
         >{\\hsize=0.75\\hsize\\centering\\arraybackslash}X
         >{\\hsize=0.75\\hsize\\centering\\arraybackslash}X
     `,
-            "Model & Metric & $\\overline{d}$ & $95\\%\\,\\mbox{-}CI$ & $t$ & $df$",
+            "Model & Metric & $\\overline{d}$ & $95\\%\\,\\mbox{-}CI$ & $t$ & $p$",
                 pairedTestRows,
             ),
             createLatexTable(
-                "Effect size and p-value results",
+                "Effect size results",
                 "tab:statistical-effect-significance",
-                `
-        >{\\hsize=1.25\\hsize\\raggedright\\arraybackslash}X
-        >{\\hsize=1.0\\hsize\\raggedright\\arraybackslash}X
-        >{\\hsize=1.5\\hsize\\centering\\arraybackslash}X
-        *{2}{>{\\hsize=0.75\\hsize\\centering\\arraybackslash}X}
-    `,
-                `Model & Metric & $95\\%\\,\\mbox{-}CI$ (effect) & ${effectSizeHeader} & $p$`,
+                `llcc`,
+                `Model & Metric & $95\\%\\,\\mbox{-}CI$ (effect) & ${effectSizeHeader}`,
                 effectSizeRows,
+                "bottom",
+                "natural",
             ),
         ];
         downloadLatexTable(tables.join("\n"), "statistical-test-results.tex");
@@ -119,7 +129,7 @@ export default function StatisticalTestResults({ results, alpha, promptLabels }:
                 <div className="flex items-start justify-between">
                     <div>
                         <CardTitle>Statistical Test Results</CardTitle>
-                            <CardDescription>Two-sided paired t-tests.</CardDescription>
+                        <CardDescription>Macro-averaged metrics with two-sided paired t-tests.</CardDescription>
                         <p className="text-sm text-muted-foreground">&alpha;={alpha}</p>
                     </div>
                     <ChartMenu onDownloadLatex={handleDownloadLatex} />
@@ -138,10 +148,10 @@ export default function StatisticalTestResults({ results, alpha, promptLabels }:
                                                 <th className="min-w-48 whitespace-nowrap px-3 py-3 text-left font-semibold">Shapiro-Wilk Result</th>
                                     {[promptLabels[0] ?? "Prompt A", promptLabels[1] ?? "Prompt B"].map((label) => (
                                         <th key={label} className="max-w-36 px-3 py-3 text-left font-semibold">
-                                            <span className="block truncate" title={`${label} (Mean)`}>{label} (Mean)</span>
+                                            <span className="block truncate" title={`${label} (Mean ± SD)`}>{label} (Mean ± SD)</span>
                                         </th>
                                     ))}
-                                    {["Difference", "SD Difference", "95%-CI", "t-Value", "p-Value", "Effect 95%-CI", effectSizeLabel].map((header) => (
+                                    {["Difference (Mean ± SD)", "95%-CI", "t-Value", "p-Value", "Effect 95%-CI", effectSizeLabel].map((header) => (
                                             <th key={header} className="whitespace-nowrap px-3 py-3 text-left font-semibold">
                                                 {header === effectSizeLabel ? renderEffectSizeLabel(header) : header}
                                             </th>
@@ -169,17 +179,16 @@ export default function StatisticalTestResults({ results, alpha, promptLabels }:
                                                         >
                                                             <div>{modelLabel}</div>
                                                             <div className="mt-1 flex gap-3 text-xs font-normal text-muted-foreground">
-                                                                <span>n={first.n}</span>
+                                                                <span>n={first.n} test cases</span>
                                                                 <span>df={first.df ?? "-"}</span>
                                                             </div>
                                                         </td>
                                                     )}
                                                     <td className="whitespace-nowrap px-3 py-2">{result.metric}</td>
                                                     <td className="min-w-48 px-3 py-2">{result.shapiroResult}</td>
-                                                    <td className="px-3 py-2 font-mono">{format(result.promptA)}</td>
-                                                    <td className="px-3 py-2 font-mono">{format(result.promptB)}</td>
-                                                    <td className="px-3 py-2 font-mono">{format(result.difference)}</td>
-                                                    <td className="px-3 py-2 font-mono">{format(result.differenceStandardDeviation)}</td>
+                                                    <td className="px-3 py-2 font-mono">{formatMeanStandardDeviation(result.promptA, result.promptAStandardDeviation)}</td>
+                                                    <td className="px-3 py-2 font-mono">{formatMeanStandardDeviation(result.promptB, result.promptBStandardDeviation)}</td>
+                                                    <td className="px-3 py-2 font-mono">{formatMeanStandardDeviation(result.difference, result.differenceStandardDeviation)}</td>
                                                     <td className="whitespace-nowrap px-3 py-2 font-mono">{result.confidenceInterval ? `[${format(result.confidenceInterval[0])}, ${format(result.confidenceInterval[1])}]` : "-"}</td>
                                                     <td className="px-3 py-2 font-mono">{format(result.tValue)}</td>
                                                     <td className="px-3 py-2 font-mono">{format(result.pValue)}</td>

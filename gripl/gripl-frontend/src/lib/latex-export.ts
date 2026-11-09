@@ -58,7 +58,8 @@ export function downloadLatexTable(content: string, filename: string): void {
 }
 
 /**
- * Creates an embeddable LaTeX table using `tabularx` and `booktabs`.
+ * Creates an embeddable LaTeX table using `tabularx` or natural-width
+ * `tabular` and `booktabs`.
  *
  * Header fragments and row strings are expected to contain already formatted
  * LaTeX where necessary; captions and labels are escaped automatically.
@@ -69,6 +70,7 @@ export function downloadLatexTable(content: string, filename: string): void {
  * @param header Header row, or an empty string for a table without headers.
  * @param rows Table body rows.
  * @param captionPosition Whether to place the caption above or below the table.
+ * @param layout Whether the table should fill the page width or use its natural width.
  * @returns The complete embeddable LaTeX table source.
  */
 export function createLatexTable(
@@ -78,6 +80,7 @@ export function createLatexTable(
     header: string,
     rows: string[],
     captionPosition: "top" | "bottom" = "bottom",
+    layout: "full" | "natural" = "full",
 ): string {
     const captionMarkup = `\\caption{${escapeLatex(caption)}}\n    \\label{${escapeLatex(label)}}`;
     const headerMarkup = header
@@ -87,18 +90,22 @@ export function createLatexTable(
         ? `\\caption{${escapeLatex(caption)}}\n    \\label{${escapeLatex(label)}}`
         : "";
     const topCaptionMarkup = captionPosition === "top" ? `    ${captionMarkup}\n` : "";
+    const tableMarkup = layout === "natural"
+        ? `\\begin{tabular}{${columns}}`
+        : `\\begin{tabularx}{\\linewidth}{${columns}}`;
+    const tableEndMarkup = layout === "natural" ? "\\end{tabular}" : "\\end{tabularx}";
 
     return `% Requires \\usepackage{array,booktabs,tabularx}
 \\begin{table}[htbp]
     \\centering
 ${topCaptionMarkup}    \\small
     \\setlength{\\tabcolsep}{4pt}
-    \\begin{tabularx}{\\linewidth}{${columns}}
+    ${tableMarkup}
         ${headerMarkup}
         ${rows.join(" \\\\\n        ")}
         \\\\
         \\bottomrule
-    \\end{tabularx}
+    ${tableEndMarkup}
     ${bottomCaptionMarkup}
 \\end{table}
 `;
